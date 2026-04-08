@@ -6,6 +6,7 @@
   <title>StockWise — Sign In</title>
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="js/store.js"></script>
 </head>
 <body>
 
@@ -105,9 +106,7 @@
   </div>
 </div>
 
-<script type="module">
-  import { initStore, getUser, login, register } from './js/store.js';
-
+<script>
   initStore();
 
   // Redirect if already logged in

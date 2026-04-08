@@ -6,6 +6,7 @@
   <title>Products — StockWise</title>
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="js/store.js"></script>
 </head>
 <body>
 
@@ -180,9 +181,7 @@
 
 <div id="toast-container"></div>
 
-<script type="module">
-  import { initStore, getUser, logout, getProducts, saveProduct, deleteProduct } from './js/store.js';
-
+<script>
   initStore();
 
   const user = getUser();

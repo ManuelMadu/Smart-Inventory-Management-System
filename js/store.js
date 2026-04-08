@@ -1,8 +1,9 @@
 /**
  * StockWise — Local data store (localStorage)
- * Replaces Firebase for frontend-only development.
- * Swap this out for Firebase when ready.
+ * Plain global script — no ES module imports needed.
  */
+
+(function() {
 
 const KEYS = {
   user:     'sw_user',
@@ -52,85 +53,84 @@ const SEED_SALES = [
 
 // ── Init (seed if empty) ────────────────────────────────────
 
-export function initStore() {
+window.initStore = function() {
   if (!localStorage.getItem(KEYS.products)) {
     localStorage.setItem(KEYS.products, JSON.stringify(SEED_PRODUCTS));
   }
   if (!localStorage.getItem(KEYS.sales)) {
     localStorage.setItem(KEYS.sales, JSON.stringify(SEED_SALES));
   }
-}
+};
 
 // ── Auth ────────────────────────────────────────────────────
 
-export function getUser() {
+window.getUser = function() {
   const raw = localStorage.getItem(KEYS.user);
   return raw ? JSON.parse(raw) : null;
-}
+};
 
-export function login(email, password) {
-  // Simple fake auth — any non-empty credentials work in dev mode
+window.login = function(email, password) {
   if (!email || !password) throw new Error('Enter email and password.');
   if (password.length < 6) throw new Error('Password must be at least 6 characters.');
   const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   const user = { name, email };
   localStorage.setItem(KEYS.user, JSON.stringify(user));
   return user;
-}
+};
 
-export function register(firstName, lastName, email, password) {
+window.register = function(firstName, lastName, email, password) {
   if (password.length < 6) throw new Error('Password must be at least 6 characters.');
-  const user = { name: `${firstName} ${lastName}`, email };
+  const user = { name: firstName + ' ' + lastName, email };
   localStorage.setItem(KEYS.user, JSON.stringify(user));
   return user;
-}
+};
 
-export function logout() {
+window.logout = function() {
   localStorage.removeItem(KEYS.user);
-}
+};
 
 // ── Products ─────────────────────────────────────────────────
 
-export function getProducts() {
+window.getProducts = function() {
   return JSON.parse(localStorage.getItem(KEYS.products) || '[]');
-}
+};
 
-export function saveProduct(data) {
+window.saveProduct = function(data) {
   const products = getProducts();
   if (data.id) {
-    // Update
-    const idx = products.findIndex(p => p.id === data.id);
-    if (idx > -1) products[idx] = { ...products[idx], ...data, updatedAt: new Date().toISOString() };
+    const idx = products.findIndex(function(p) { return p.id === data.id; });
+    if (idx > -1) products[idx] = Object.assign({}, products[idx], data, { updatedAt: new Date().toISOString() });
   } else {
-    // Create
-    products.push({ ...data, id: 'p_' + Date.now(), createdAt: new Date().toISOString() });
+    products.push(Object.assign({}, data, { id: 'p_' + Date.now(), createdAt: new Date().toISOString() }));
   }
   localStorage.setItem(KEYS.products, JSON.stringify(products));
-}
+};
 
-export function deleteProduct(id) {
-  const products = getProducts().filter(p => p.id !== id);
+window.deleteProduct = function(id) {
+  const products = getProducts().filter(function(p) { return p.id !== id; });
   localStorage.setItem(KEYS.products, JSON.stringify(products));
-}
+};
 
-export function decrementStock(productId, qty) {
+window.decrementStock = function(productId, qty) {
   const products = getProducts();
-  const p = products.find(p => p.id === productId);
+  const p = products.find(function(p) { return p.id === productId; });
   if (p) p.quantity = Math.max(0, p.quantity - qty);
   localStorage.setItem(KEYS.products, JSON.stringify(products));
-}
+};
 
 // ── Sales ────────────────────────────────────────────────────
 
-export function getSales() {
+window.getSales = function() {
   return JSON.parse(localStorage.getItem(KEYS.sales) || '[]')
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
+    .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+};
 
-export function saveSale(data) {
+window.saveSale = function(data) {
   const sales = getSales();
-  const sale  = { ...data, id: makeSaleId(), createdAt: new Date().toISOString() };
+  const sale  = Object.assign({}, data, { id: makeSaleId(), createdAt: new Date().toISOString() });
   sales.push(sale);
   localStorage.setItem(KEYS.sales, JSON.stringify(sales));
   return sale;
-}
+};
+
+})();

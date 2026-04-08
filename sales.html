@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="js/store.js"></script>
 </head>
 <body>
 
@@ -163,8 +164,7 @@
 
 <div id="toast-container"></div>
 
-<script type="module">
-  import { initStore, getUser, logout, getProducts, getSales, saveSale, decrementStock } from './js/store.js';
+<script>
 
   initStore();
 
