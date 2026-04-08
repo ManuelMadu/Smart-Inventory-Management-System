@@ -153,6 +153,7 @@
       await userCol('products').doc(id).update(rest);
     } else {
       var newData = Object.assign({}, data);
+      delete newData.id;
       newData.createdAt = new Date().toISOString();
       await userCol('products').add(newData);
     }
