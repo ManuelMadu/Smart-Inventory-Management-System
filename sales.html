@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales — StockWise</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="ph ph-chart-bar"></i></div>
+      <div class="sidebar-logo-text"><strong>StockWise</strong><span>Inventory</span></div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-item"><i class="ph ph-squares-four"></i> Dashboard</a>
+    <a href="products.html"  class="nav-item"><i class="ph ph-package"></i> Products</a>
+    <a href="sales.html"     class="nav-item active"><i class="ph ph-receipt"></i> Sales</a>
+    <a href="reports.html"   class="nav-item"><i class="ph ph-chart-line-up"></i> Reports</a>
+    <span class="nav-section-label" style="margin-top:16px">Alerts</span>
+    <a href="products.html" class="nav-item">
+      <i class="ph ph-warning"></i> Low Stock
+      <span class="nav-badge" id="sidebar-alert-count" style="display:none">0</span>
+    </a>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="user-avatar">M</div>
+      <div>
+        <div class="sidebar-user-name" id="user-name">—</div>
+        <div class="sidebar-user-email" id="user-email">—</div>
+      </div>
+    </div>
+    <button class="nav-item" onclick="handleLogout()" style="margin-top:4px; color:var(--danger)">
+      <i class="ph ph-sign-out"></i> Sign Out
+    </button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Sales</h1>
+        <p>Record sales and generate PDF invoices</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-accent btn-sm" onclick="openNewSaleModal()">
+          <i class="ph ph-plus"></i> New Sale
+        </button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="text" class="search-input" id="search-input" placeholder="Search by customer or invoice…" oninput="filterSales()" />
+        </div>
+        <input type="date" class="filter-sel" id="filter-date" onchange="filterSales()" style="padding:8px 13px; max-width:160px" />
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Customer</th>
+                <th>Items</th>
+                <th>Subtotal</th>
+                <th>Tax (20%)</th>
+                <th>Total</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sales-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- New Sale Modal -->
+<div class="modal-overlay" id="sale-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Record New Sale</div>
+        <div class="modal-subtitle">Select products and enter quantities</div>
+      </div>
+      <button class="modal-close" onclick="closeSaleModal()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Customer name</label>
+          <input type="text" class="form-input" id="sale-customer" placeholder="Customer or walk-in" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sale date</label>
+          <input type="date" class="form-input" id="sale-date" />
+        </div>
+      </div>
+
+      <label class="form-label" style="margin-bottom:8px; display:block">Items</label>
+      <div class="sale-items-list" id="sale-items-list"></div>
+
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addItemRow()" style="margin-bottom:16px">
+        <i class="ph ph-plus"></i> Add Item
+      </button>
+
+      <div class="sale-summary">
+        <div class="sale-sum-row"><span>Subtotal</span><span id="sum-sub">£0.00</span></div>
+        <div class="sale-sum-row"><span>Tax (20%)</span><span id="sum-tax">£0.00</span></div>
+        <div class="sale-sum-row grand"><span>Total</span><span id="sum-total">£0.00</span></div>
+      </div>
+
+      <div id="sale-error" class="alert-banner danger" style="display:none; margin-top:12px">
+        <i class="ph ph-warning-circle"></i><span id="sale-error-text"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSaleModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-sale-btn" onclick="handleSaveSale()">
+        <i class="ph ph-receipt"></i>
+        <span id="save-sale-text">Record Sale</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Modal -->
+<div class="modal-overlay" id="invoice-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Invoice</div>
+        <div class="modal-subtitle" id="invoice-modal-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeInvoiceModal()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="invoice-sheet" id="invoice-sheet"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeInvoiceModal()">Close</button>
+      <button class="btn btn-primary" onclick="downloadInvoicePDF()">
+        <i class="ph ph-download-simple"></i> Download PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script type="module">
+  import { initStore, getUser, logout, getProducts, getSales, saveSale, decrementStock } from './js/store.js';
+
+  initStore();
+
+  const user = getUser();
+  if (!user) { window.location.href = 'index.html'; }
+
+  document.getElementById('user-name').textContent   = user.name;
+  document.getElementById('user-email').textContent  = user.email;
+  document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
+  document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
+
+  window.handleLogout = function() { logout(); window.location.href = 'index.html'; };
+
+  let allSales       = [];
+  let allProducts    = [];
+  let currentInvoice = null;
+
+  function load() {
+    allProducts = getProducts();
+    allSales    = getSales();
+
+    const low = allProducts.filter(p => p.quantity <= p.lowStockThreshold).length;
+    const badge = document.getElementById('sidebar-alert-count');
+    if (low > 0) { badge.textContent = low; badge.style.display = ''; }
+    else badge.style.display = 'none';
+
+    renderSales(allSales);
+  }
+
+  load();
+
+  // ── Render sales ──────────────────────────────────────────
+  function renderSales(sales) {
+    const tbody = document.getElementById('sales-body');
+    if (!sales.length) {
+      tbody.innerHTML = `<tr><td colspan="8">
+        <div class="empty-state">
+          <div class="empty-icon"><i class="ph ph-receipt"></i></div>
+          <h3>No sales recorded</h3>
+          <p>Record your first sale to get started.</p>
+          <button class="btn btn-accent btn-sm" onclick="openNewSaleModal()"><i class="ph ph-plus"></i> New Sale</button>
+        </div>
+      </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = sales.map(s => {
+      const date = new Date(s.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+      const n    = s.items?.length || 0;
+      return `<tr>
+        <td><span class="font-mono text-sm">${s.invoiceNumber}</span></td>
+        <td class="td-primary">${s.customerName || 'Walk-in'}</td>
+        <td class="text-muted">${n} item${n !== 1 ? 's' : ''}</td>
+        <td>£${(s.subtotal||0).toFixed(2)}</td>
+        <td class="text-muted">£${(s.tax||0).toFixed(2)}</td>
+        <td><strong>£${(s.grandTotal||0).toFixed(2)}</strong></td>
+        <td class="text-muted text-sm">${date}</td>
+        <td>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="viewInvoice('${s.id}')" title="View Invoice">
+            <i class="ph ph-eye"></i>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Filter ────────────────────────────────────────────────
+  window.filterSales = function() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const date   = document.getElementById('filter-date').value;
+    const filtered = allSales.filter(s => {
+      const ms = !search || (s.customerName||'').toLowerCase().includes(search) || s.invoiceNumber.toLowerCase().includes(search);
+      const md = !date   || new Date(s.createdAt).toISOString().split('T')[0] === date;
+      return ms && md;
+    });
+    renderSales(filtered);
+  };
+
+  // ── New Sale Modal ────────────────────────────────────────
+  window.openNewSaleModal = function() {
+    document.getElementById('sale-items-list').innerHTML = '';
+    document.getElementById('sale-customer').value = '';
+    document.getElementById('sale-date').value     = new Date().toISOString().split('T')[0];
+    document.getElementById('sale-error').style.display = 'none';
+    addItemRow();
+    updateSummary();
+    document.getElementById('sale-modal').classList.add('open');
+  };
+
+  window.closeSaleModal = function() { document.getElementById('sale-modal').classList.remove('open'); };
+
+  window.addItemRow = function() {
+    const row = document.createElement('div');
+    row.className = 'sale-item-row';
+    row.innerHTML = `
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Product</label>
+        <select class="form-input" onchange="onProductSelect(this)" style="padding:8px 12px">
+          <option value="">Select product…</option>
+          ${allProducts.map(p => `<option value="${p.id}" data-price="${p.price}" data-stock="${p.quantity}">${p.name} — £${parseFloat(p.price).toFixed(2)} (${p.quantity} in stock)</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Qty</label>
+        <input type="number" class="form-input" min="1" value="1" style="padding:8px 12px" oninput="updateSummary()" />
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Unit price</label>
+        <input type="number" class="form-input" min="0" step="0.01" placeholder="0.00" style="padding:8px 12px" oninput="updateSummary()" />
+      </div>
+      <button type="button" class="remove-row-btn" onclick="this.closest('.sale-item-row').remove(); updateSummary()">
+        <i class="ph ph-trash"></i>
+      </button>`;
+    document.getElementById('sale-items-list').appendChild(row);
+  };
+
+  window.onProductSelect = function(sel) {
+    const opt   = sel.options[sel.selectedIndex];
+    const row   = sel.closest('.sale-item-row');
+    row.querySelectorAll('input[type="number"]')[1].value = parseFloat(opt.dataset.price || 0).toFixed(2);
+    updateSummary();
+  };
+
+  window.updateSummary = function() {
+    let sub = 0;
+    document.querySelectorAll('.sale-item-row').forEach(row => {
+      const qty   = parseFloat(row.querySelector('input[min="1"]')?.value) || 0;
+      const price = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value) || 0;
+      sub += qty * price;
+    });
+    const tax = sub * 0.20;
+    document.getElementById('sum-sub').textContent   = '£' + sub.toFixed(2);
+    document.getElementById('sum-tax').textContent   = '£' + tax.toFixed(2);
+    document.getElementById('sum-total').textContent = '£' + (sub + tax).toFixed(2);
+  };
+
+  // ── Save Sale ─────────────────────────────────────────────
+  window.handleSaveSale = function() {
+    document.getElementById('sale-error').style.display = 'none';
+
+    const rows = [...document.querySelectorAll('.sale-item-row')];
+    if (!rows.length) { showSaleError('Add at least one item.'); return; }
+
+    const items = [];
+    for (const row of rows) {
+      const sel   = row.querySelector('select');
+      const qty   = parseInt(row.querySelector('input[min="1"]')?.value) || 0;
+      const price = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value) || 0;
+      if (!sel.value)  { showSaleError('Select a product for each item row.'); return; }
+      if (qty < 1)     { showSaleError('Quantity must be at least 1.'); return; }
+      const product = allProducts.find(p => p.id === sel.value);
+      if (!product)    { showSaleError('Product not found.'); return; }
+      if (qty > product.quantity) { showSaleError(`Not enough stock for "${product.name}" — only ${product.quantity} available.`); return; }
+      items.push({ productId: sel.value, productName: product.name, quantity: qty, unitPrice: price, lineTotal: qty * price });
+    }
+
+    const subtotal   = items.reduce((s,i) => s + i.lineTotal, 0);
+    const tax        = subtotal * 0.20;
+    const grandTotal = subtotal + tax;
+    const invoiceNum = 'INV-' + Math.floor(100000 + Math.random() * 900000);
+
+    const sale = saveSale({
+      invoiceNumber: invoiceNum,
+      customerName:  document.getElementById('sale-customer').value.trim() || 'Walk-in',
+      items, subtotal, tax, grandTotal,
+      saleDate: document.getElementById('sale-date').value,
+    });
+
+    // Decrement stock
+    items.forEach(item => decrementStock(item.productId, item.quantity));
+
+    toast(`Sale recorded — ${invoiceNum}`, 'success');
+    closeSaleModal();
+    load();
+
+    // Auto-show invoice
+    setTimeout(() => viewInvoice(sale.id), 400);
+  };
+
+  function showSaleError(msg) {
+    document.getElementById('sale-error-text').textContent = msg;
+    document.getElementById('sale-error').style.display = 'flex';
+  }
+
+  // ── Invoice ───────────────────────────────────────────────
+  window.viewInvoice = function(id) {
+    const sale = getSales().find(s => s.id === id);
+    if (!sale) return;
+    currentInvoice = sale;
+
+    document.getElementById('invoice-modal-sub').textContent = `${sale.invoiceNumber} · ${sale.customerName}`;
+
+    const dateStr = new Date(sale.createdAt).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+
+    document.getElementById('invoice-sheet').innerHTML = `
+      <div class="invoice-top">
+        <div>
+          <div class="invoice-brand">Stock<span>Wise</span></div>
+          <div style="font-size:12px; color:var(--t2); margin-top:4px">Smart Inventory System</div>
+        </div>
+        <div class="invoice-meta-right">
+          <div class="invoice-num">${sale.invoiceNumber}</div>
+          <div class="invoice-date-lbl">Issued: ${dateStr}</div>
+        </div>
+      </div>
+      <div class="invoice-rule"></div>
+      <div class="invoice-parties">
+        <div>
+          <div class="invoice-party-head">From</div>
+          <div class="invoice-party-name">StockWise Ltd</div>
+          <div class="invoice-party-info">inventory@stockwise.app</div>
+        </div>
+        <div>
+          <div class="invoice-party-head">Bill To</div>
+          <div class="invoice-party-name">${sale.customerName || 'Walk-in Customer'}</div>
+          <div class="invoice-party-info">Date: ${dateStr}</div>
+        </div>
+      </div>
+      <table class="invoice-tbl">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th style="text-align:center">Qty</th>
+            <th style="text-align:right">Unit Price</th>
+            <th style="text-align:right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(sale.items||[]).map(i => `<tr>
+            <td>${i.productName}</td>
+            <td style="text-align:center">${i.quantity}</td>
+            <td style="text-align:right">£${parseFloat(i.unitPrice).toFixed(2)}</td>
+            <td>£${parseFloat(i.lineTotal).toFixed(2)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="invoice-totals">
+        <div class="invoice-total-row"><span>Subtotal</span><span>£${(sale.subtotal||0).toFixed(2)}</span></div>
+        <div class="invoice-total-row"><span>Tax (20% VAT)</span><span>£${(sale.tax||0).toFixed(2)}</span></div>
+        <div class="invoice-total-row grand"><span>Total Due</span><span>£${(sale.grandTotal||0).toFixed(2)}</span></div>
+      </div>
+      <div class="invoice-rule" style="margin-top:24px"></div>
+      <div style="font-size:11px; color:var(--t2); text-align:center">
+        Thank you for your business · Generated by StockWise
+      </div>`;
+
+    document.getElementById('invoice-modal').classList.add('open');
+  };
+
+  window.closeInvoiceModal = function() { document.getElementById('invoice-modal').classList.remove('open'); };
+
+  window.downloadInvoicePDF = function() {
+    if (!currentInvoice) return;
+    const { jsPDF } = window.jspdf;
+    const doc  = new jsPDF({ orientation:'p', unit:'mm', format:'a4' });
+    const s    = currentInvoice;
+    const date = new Date(s.createdAt).toLocaleDateString('en-GB');
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(22);
+    doc.text('StockWise', 14, 22);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100);
+    doc.text('Smart Inventory System', 14, 28);
+
+    doc.setTextColor(0); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text(s.invoiceNumber, 196, 22, { align:'right' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100);
+    doc.text(`Issued: ${date}`, 196, 28, { align:'right' });
+
+    doc.setDrawColor(230); doc.line(14,33,196,33);
+
+    doc.setFontSize(8); doc.setTextColor(150);
+    doc.text('FROM', 14, 40); doc.text('BILL TO', 110, 40);
+    doc.setTextColor(0); doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text('StockWise Ltd', 14, 47); doc.text(s.customerName||'Walk-in', 110, 47);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100);
+    doc.text('inventory@stockwise.app', 14, 53); doc.text(`Date: ${date}`, 110, 53);
+
+    doc.autoTable({
+      startY: 62,
+      head: [['Description','Qty','Unit Price','Total']],
+      body: (s.items||[]).map(i => [i.productName, i.quantity, `£${parseFloat(i.unitPrice).toFixed(2)}`, `£${parseFloat(i.lineTotal).toFixed(2)}`]),
+      styles: { font:'helvetica', fontSize:9 },
+      headStyles: { fillColor:[245,245,244], textColor:[80,80,80], fontStyle:'bold' },
+      columnStyles: { 1:{ halign:'center' }, 2:{ halign:'right' }, 3:{ halign:'right' } }
+    });
+
+    const y = doc.lastAutoTable.finalY + 6;
+    doc.setTextColor(100); doc.setFontSize(9);
+    doc.text('Subtotal:', 150, y);       doc.text(`£${(s.subtotal||0).toFixed(2)}`, 196, y, { align:'right' });
+    doc.text('Tax (20% VAT):', 150, y+6); doc.text(`£${(s.tax||0).toFixed(2)}`, 196, y+6, { align:'right' });
+    doc.setDrawColor(200); doc.line(148, y+9, 196, y+9);
+    doc.setFont('helvetica','bold'); doc.setTextColor(0); doc.setFontSize(11);
+    doc.text('Total Due:', 150, y+16); doc.text(`£${(s.grandTotal||0).toFixed(2)}`, 196, y+16, { align:'right' });
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(150);
+    doc.text('Thank you for your business · Generated by StockWise', 105, 285, { align:'center' });
+    doc.save(`${s.invoiceNumber}.pdf`);
+    toast('PDF downloaded', 'success');
+  };
+
+  // ── Toast ─────────────────────────────────────────────────
+  function toast(msg, type='success') {
+    const icon = type==='success' ? 'ph-check-circle' : type==='error' ? 'ph-x-circle' : 'ph-warning';
+    const el   = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<i class="ph ${icon}"></i> ${msg}`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => { el.style.animation='slideOutRight 0.3s ease forwards'; setTimeout(()=>el.remove(),300); }, 3500);
+  }
+
+  window.toast = toast;
+</script>
+
+</body>
+</html>

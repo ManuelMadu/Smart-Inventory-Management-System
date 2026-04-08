@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockWise — Sign In</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+
+<div class="auth-layout">
+
+  <!-- Brand Panel -->
+  <div class="auth-brand">
+    <div class="auth-logo">
+      <div class="auth-logo-icon"><i class="ph ph-chart-bar"></i></div>
+      <span class="auth-logo-name">StockWise</span>
+    </div>
+
+    <div class="auth-headline">
+      <h1>Inventory that<br><em>works for you</em></h1>
+      <p>Track products, record sales, generate invoices, and get low-stock alerts — all in one clean dashboard built for small businesses.</p>
+    </div>
+
+    <div class="auth-stats">
+      <div>
+        <span class="auth-stat-val">Real-time</span>
+        <span class="auth-stat-lbl">Stock Updates</span>
+      </div>
+      <div>
+        <span class="auth-stat-val">Auto</span>
+        <span class="auth-stat-lbl">PDF Invoices</span>
+      </div>
+      <div>
+        <span class="auth-stat-val">Smart</span>
+        <span class="auth-stat-lbl">Low-Stock Alerts</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Panel -->
+  <div class="auth-panel">
+    <div class="auth-form-wrap">
+      <h2 class="auth-form-heading">Welcome back</h2>
+      <p class="auth-form-sub">Sign in to your inventory dashboard</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login"    onclick="switchTab('login')">Sign In</button>
+        <button class="auth-tab"        id="tab-register" onclick="switchTab('register')">Create Account</button>
+      </div>
+
+      <div id="auth-alert" class="alert-banner danger" style="display:none">
+        <i class="ph ph-warning-circle"></i>
+        <span id="auth-alert-text"></span>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Email address</label>
+          <input type="email" class="form-input" id="login-email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" id="login-password" placeholder="••••••••" required />
+        </div>
+        <div style="margin-bottom:20px; text-align:right">
+          <span style="font-size:12px; color:var(--t2)">Dev mode: any credentials work</span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="login-btn">
+          <span id="login-btn-text">Sign In</span>
+          <i class="ph ph-arrow-right"></i>
+        </button>
+      </form>
+
+      <!-- REGISTER FORM -->
+      <form id="register-form" style="display:none" onsubmit="handleRegister(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">First name</label>
+            <input type="text" class="form-input" id="reg-firstname" placeholder="Manuel" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last name</label>
+            <input type="text" class="form-input" id="reg-lastname" placeholder="Madubugini" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email address</label>
+          <input type="email" class="form-input" id="reg-email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" id="reg-password" placeholder="At least 6 characters" required minlength="6" />
+          <span class="form-helper">Minimum 6 characters</span>
+        </div>
+        <button type="submit" class="btn btn-accent btn-lg" id="register-btn">
+          <span id="register-btn-text">Create Account</span>
+          <i class="ph ph-arrow-right"></i>
+        </button>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initStore, getUser, login, register } from './js/store.js';
+
+  initStore();
+
+  // Redirect if already logged in
+  if (getUser()) window.location.href = 'dashboard.html';
+
+  // ── Tab switch ──────────────────────────────────────────────
+  window.switchTab = function(tab) {
+    clearAlert();
+    const isLogin = tab === 'login';
+    document.getElementById('login-form').style.display    = isLogin ? '' : 'none';
+    document.getElementById('register-form').style.display = isLogin ? 'none' : '';
+    document.getElementById('tab-login').classList.toggle('active', isLogin);
+    document.getElementById('tab-register').classList.toggle('active', !isLogin);
+    document.querySelector('.auth-form-heading').textContent = isLogin ? 'Welcome back' : 'Create account';
+    document.querySelector('.auth-form-sub').textContent     = isLogin
+      ? 'Sign in to your inventory dashboard'
+      : 'Start managing your inventory today';
+  };
+
+  // ── Login ───────────────────────────────────────────────────
+  window.handleLogin = function(e) {
+    e.preventDefault();
+    clearAlert();
+    const btn     = document.getElementById('login-btn');
+    const btnText = document.getElementById('login-btn-text');
+    btn.disabled  = true;
+    btnText.textContent = 'Signing in…';
+
+    try {
+      login(
+        document.getElementById('login-email').value.trim(),
+        document.getElementById('login-password').value
+      );
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      showAlert(err.message);
+      btn.disabled = false;
+      btnText.textContent = 'Sign In';
+    }
+  };
+
+  // ── Register ────────────────────────────────────────────────
+  window.handleRegister = function(e) {
+    e.preventDefault();
+    clearAlert();
+    const btn     = document.getElementById('register-btn');
+    const btnText = document.getElementById('register-btn-text');
+    btn.disabled  = true;
+    btnText.textContent = 'Creating account…';
+
+    try {
+      register(
+        document.getElementById('reg-firstname').value.trim(),
+        document.getElementById('reg-lastname').value.trim(),
+        document.getElementById('reg-email').value.trim(),
+        document.getElementById('reg-password').value
+      );
+      window.location.href = 'dashboard.html';
+    } catch (err) {
+      showAlert(err.message);
+      btn.disabled = false;
+      btnText.textContent = 'Create Account';
+    }
+  };
+
+  function showAlert(msg) {
+    const el = document.getElementById('auth-alert');
+    el.style.display = 'flex';
+    document.getElementById('auth-alert-text').textContent = msg;
+  }
+
+  function clearAlert() {
+    document.getElementById('auth-alert').style.display = 'none';
+  }
+</script>
+
+</body>
+</html>

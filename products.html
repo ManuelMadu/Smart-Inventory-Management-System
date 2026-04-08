@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Products — StockWise</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="ph ph-chart-bar"></i></div>
+      <div class="sidebar-logo-text"><strong>StockWise</strong><span>Inventory</span></div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-item"><i class="ph ph-squares-four"></i> Dashboard</a>
+    <a href="products.html"  class="nav-item active"><i class="ph ph-package"></i> Products</a>
+    <a href="sales.html"     class="nav-item"><i class="ph ph-receipt"></i> Sales</a>
+    <a href="reports.html"   class="nav-item"><i class="ph ph-chart-line-up"></i> Reports</a>
+    <span class="nav-section-label" style="margin-top:16px">Alerts</span>
+    <a href="products.html" class="nav-item">
+      <i class="ph ph-warning"></i> Low Stock
+      <span class="nav-badge" id="sidebar-alert-count" style="display:none">0</span>
+    </a>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="user-avatar">M</div>
+      <div>
+        <div class="sidebar-user-name" id="user-name">—</div>
+        <div class="sidebar-user-email" id="user-email">—</div>
+      </div>
+    </div>
+    <button class="nav-item" onclick="handleLogout()" style="margin-top:4px; color:var(--danger)">
+      <i class="ph ph-sign-out"></i> Sign Out
+    </button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Products</h1>
+        <p id="product-count">—</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-accent btn-sm" onclick="openAddModal()">
+          <i class="ph ph-plus"></i> Add Product
+        </button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="toolbar">
+        <div class="search-wrap">
+          <i class="ph ph-magnifying-glass"></i>
+          <input type="text" class="search-input" id="search-input" placeholder="Search products…" oninput="filterProducts()" />
+        </div>
+        <select class="filter-sel" id="filter-category" onchange="filterProducts()">
+          <option value="">All categories</option>
+        </select>
+        <select class="filter-sel" id="filter-status" onchange="filterProducts()">
+          <option value="">All stock levels</option>
+          <option value="low">Low stock</option>
+          <option value="ok">In stock</option>
+          <option value="out">Out of stock</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Stock Level</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="products-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modal-title">Add Product</div>
+        <div class="modal-subtitle">Fill in the product details below</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="product-form" onsubmit="handleSaveProduct(event)">
+        <input type="hidden" id="product-id" />
+
+        <div class="form-group">
+          <label class="form-label">Product name</label>
+          <input type="text" class="form-input" id="prod-name" placeholder="e.g. Blue T-Shirt" required />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <input type="text" class="form-input" id="prod-category" placeholder="e.g. Clothing" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Unit price (£)</label>
+            <input type="number" class="form-input" id="prod-price" placeholder="0.00" step="0.01" min="0" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Quantity in stock</label>
+            <input type="number" class="form-input" id="prod-quantity" placeholder="0" min="0" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Low stock threshold</label>
+            <input type="number" class="form-input" id="prod-threshold" placeholder="5" min="0" required />
+            <span class="form-helper">Alert when stock falls below this</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description <span style="color:var(--t2);font-size:12px">(optional)</span></label>
+          <textarea class="form-textarea" id="prod-description" placeholder="Brief product description…"></textarea>
+        </div>
+
+        <div class="modal-footer" style="padding:14px 0 0; border-top:1px solid var(--border); margin-top:8px">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-accent" id="save-btn">
+            <i class="ph ph-floppy-disk"></i>
+            <span id="save-btn-text">Save Product</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Delete Product</div>
+        <div class="modal-subtitle">This action cannot be undone</div>
+      </div>
+      <button class="modal-close" onclick="closeDeleteModal()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-banner warning">
+        <i class="ph ph-warning"></i>
+        <span>Deleting <strong id="delete-product-name"></strong> will permanently remove it from your inventory.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger-soft" onclick="confirmDelete()">
+        <i class="ph ph-trash"></i> Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script type="module">
+  import { initStore, getUser, logout, getProducts, saveProduct, deleteProduct } from './js/store.js';
+
+  initStore();
+
+  const user = getUser();
+  if (!user) { window.location.href = 'index.html'; }
+
+  document.getElementById('user-name').textContent   = user.name;
+  document.getElementById('user-email').textContent  = user.email;
+  document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
+
+  window.handleLogout = function() { logout(); window.location.href = 'index.html'; };
+
+  let allProducts  = [];
+  let deleteTarget = null;
+
+  function load() {
+    allProducts = getProducts();
+    populateCategoryFilter();
+    renderProducts(allProducts);
+    updateCount(allProducts);
+  }
+
+  load();
+
+  function updateCount(products) {
+    const low = products.filter(p => p.quantity <= p.lowStockThreshold).length;
+    document.getElementById('product-count').textContent =
+      `${products.length} product${products.length !== 1 ? 's' : ''} · ${low} low stock`;
+    const badge = document.getElementById('sidebar-alert-count');
+    if (low > 0) { badge.textContent = low; badge.style.display = ''; }
+    else badge.style.display = 'none';
+  }
+
+  function populateCategoryFilter() {
+    const sel = document.getElementById('filter-category');
+    // keep first option only
+    sel.innerHTML = '<option value="">All categories</option>';
+    const cats = [...new Set(allProducts.map(p => p.category).filter(Boolean))].sort();
+    cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+  }
+
+  // ── Render ────────────────────────────────────────────────
+  function renderProducts(products) {
+    const tbody = document.getElementById('products-body');
+    if (!products.length) {
+      tbody.innerHTML = `<tr><td colspan="6">
+        <div class="empty-state">
+          <div class="empty-icon"><i class="ph ph-package"></i></div>
+          <h3>No products found</h3>
+          <p>Add your first product to start tracking inventory.</p>
+          <button class="btn btn-accent btn-sm" onclick="openAddModal()"><i class="ph ph-plus"></i> Add Product</button>
+        </div>
+      </td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = products.map(p => {
+      const max   = Math.max(p.quantity, p.lowStockThreshold * 3, 1);
+      const pct   = Math.min(100, (p.quantity / max) * 100);
+      const level = p.quantity === 0 ? 'lo' : p.quantity <= p.lowStockThreshold ? 'mid' : 'hi';
+      const badge = p.quantity === 0
+        ? `<span class="badge badge-red">Out of stock</span>`
+        : p.quantity <= p.lowStockThreshold
+        ? `<span class="badge badge-amber">Low stock</span>`
+        : `<span class="badge badge-green">In stock</span>`;
+
+      return `<tr>
+        <td>
+          <div class="d-flex align-center gap-2">
+            <div class="prod-avatar"><i class="ph ph-package"></i></div>
+            <div>
+              <div class="td-primary">${p.name}</div>
+              ${p.description ? `<div class="td-sub">${p.description.slice(0,50)}${p.description.length>50?'…':''}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td><span class="badge badge-gray">${p.category || '—'}</span></td>
+        <td>
+          <div class="stock-wrap">
+            <div class="stock-bar-bg"><div class="stock-bar-fill ${level}" style="width:${pct}%"></div></div>
+            <span class="stock-qty">${p.quantity}</span>
+          </div>
+        </td>
+        <td><strong>£${parseFloat(p.price).toFixed(2)}</strong></td>
+        <td>${badge}</td>
+        <td>
+          <div class="d-flex gap-2">
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditModal('${p.id}')" title="Edit">
+              <i class="ph ph-pencil-simple"></i>
+            </button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="openDeleteModal('${p.id}','${p.name.replace(/'/g,"&apos;")}')" title="Delete">
+              <i class="ph ph-trash" style="color:var(--danger)"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Filter ────────────────────────────────────────────────
+  window.filterProducts = function() {
+    const search   = document.getElementById('search-input').value.toLowerCase();
+    const category = document.getElementById('filter-category').value;
+    const status   = document.getElementById('filter-status').value;
+    const filtered = allProducts.filter(p => {
+      const ms = !search   || p.name.toLowerCase().includes(search) || (p.category||'').toLowerCase().includes(search);
+      const mc = !category || p.category === category;
+      const mv = !status   ||
+        (status === 'out' && p.quantity === 0) ||
+        (status === 'low' && p.quantity > 0 && p.quantity <= p.lowStockThreshold) ||
+        (status === 'ok'  && p.quantity > p.lowStockThreshold);
+      return ms && mc && mv;
+    });
+    renderProducts(filtered);
+  };
+
+  // ── Modals ────────────────────────────────────────────────
+  window.openAddModal = function() {
+    document.getElementById('product-id').value        = '';
+    document.getElementById('modal-title').textContent = 'Add Product';
+    document.getElementById('save-btn-text').textContent = 'Save Product';
+    document.getElementById('product-form').reset();
+    document.getElementById('product-modal').classList.add('open');
+  };
+
+  window.openEditModal = function(id) {
+    const p = allProducts.find(p => p.id === id);
+    if (!p) return;
+    document.getElementById('product-id').value          = id;
+    document.getElementById('modal-title').textContent   = 'Edit Product';
+    document.getElementById('save-btn-text').textContent = 'Update Product';
+    document.getElementById('prod-name').value           = p.name;
+    document.getElementById('prod-category').value       = p.category || '';
+    document.getElementById('prod-price').value          = p.price;
+    document.getElementById('prod-quantity').value       = p.quantity;
+    document.getElementById('prod-threshold').value      = p.lowStockThreshold;
+    document.getElementById('prod-description').value    = p.description || '';
+    document.getElementById('product-modal').classList.add('open');
+  };
+
+  window.closeModal = function() { document.getElementById('product-modal').classList.remove('open'); };
+
+  window.openDeleteModal = function(id, name) {
+    deleteTarget = id;
+    document.getElementById('delete-product-name').textContent = name;
+    document.getElementById('delete-modal').classList.add('open');
+  };
+
+  window.closeDeleteModal = function() {
+    document.getElementById('delete-modal').classList.remove('open');
+    deleteTarget = null;
+  };
+
+  // ── Save product ──────────────────────────────────────────
+  window.handleSaveProduct = function(e) {
+    e.preventDefault();
+    const id = document.getElementById('product-id').value;
+
+    saveProduct({
+      id:                id || undefined,
+      name:              document.getElementById('prod-name').value.trim(),
+      category:          document.getElementById('prod-category').value.trim(),
+      price:             parseFloat(document.getElementById('prod-price').value),
+      quantity:          parseInt(document.getElementById('prod-quantity').value),
+      lowStockThreshold: parseInt(document.getElementById('prod-threshold').value),
+      description:       document.getElementById('prod-description').value.trim(),
+    });
+
+    toast(id ? 'Product updated' : 'Product added', 'success');
+    closeModal();
+    load();
+  };
+
+  // ── Delete ────────────────────────────────────────────────
+  window.confirmDelete = function() {
+    if (!deleteTarget) return;
+    deleteProduct(deleteTarget);
+    toast('Product deleted', 'success');
+    closeDeleteModal();
+    load();
+  };
+
+  // ── Toast ─────────────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const icon = type === 'success' ? 'ph-check-circle' : type === 'error' ? 'ph-x-circle' : 'ph-warning';
+    const el   = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<i class="ph ${icon}"></i> ${msg}`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => { el.style.animation = 'slideOutRight 0.3s ease forwards'; setTimeout(() => el.remove(), 300); }, 3000);
+  }
+</script>
+
+</body>
+</html>
