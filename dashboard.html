@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
 </head>
 <body>
@@ -168,31 +171,30 @@
 <div id="toast-container"></div>
 
 <script>
-  initStore();
+  firebase.auth().onAuthStateChanged(async function(fbUser) {
+    if (!fbUser) { window.location.href = 'index.html'; return; }
 
-  // ── Auth guard ────────────────────────────────────────────
-  const user = getUser();
-  if (!user) { window.location.href = 'index.html'; }
+    var userName = fbUser.displayName || fbUser.email;
+    document.getElementById('user-name').textContent   = userName;
+    document.getElementById('user-email').textContent  = fbUser.email;
+    document.getElementById('user-avatar').textContent = userName.charAt(0).toUpperCase();
+    document.getElementById('date-label').textContent  = new Date().toLocaleDateString('en-GB', {
+      weekday:'long', day:'numeric', month:'long', year:'numeric'
+    });
 
-  document.getElementById('user-name').textContent   = user.name;
-  document.getElementById('user-email').textContent  = user.email;
-  document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
+    window.handleLogout = function() {
+      firebase.auth().signOut().then(function() { window.location.href = 'index.html'; });
+    };
 
-  document.getElementById('date-label').textContent = new Date().toLocaleDateString('en-GB', {
-    weekday:'long', day:'numeric', month:'long', year:'numeric'
+    var products = await getProducts();
+    var sales    = await getSales();
+
+    renderStats(products, sales);
+    renderLowStock(products);
+    renderRecentSales(sales.slice(0, 6));
+    renderSalesChart(sales);
+    renderStockChart(products);
   });
-
-  window.handleLogout = function() { logout(); window.location.href = 'index.html'; };
-
-  // ── Load data ─────────────────────────────────────────────
-  const products = getProducts();
-  const sales    = getSales();
-
-  renderStats(products, sales);
-  renderLowStock(products);
-  renderRecentSales(sales.slice(0, 6));
-  renderSalesChart(sales);
-  renderStockChart(products);
 
   // ── Stats ─────────────────────────────────────────────────
   function renderStats(products, sales) {

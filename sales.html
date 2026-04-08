@@ -8,6 +8,9 @@
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
 </head>
 <body>
@@ -165,36 +168,37 @@
 <div id="toast-container"></div>
 
 <script>
+  var allSales       = [];
+  var allProducts    = [];
+  var currentInvoice = null;
 
-  initStore();
+  async function load() {
+    allProducts = await getProducts();
+    allSales    = await getSales();
 
-  const user = getUser();
-  if (!user) { window.location.href = 'index.html'; }
-
-  document.getElementById('user-name').textContent   = user.name;
-  document.getElementById('user-email').textContent  = user.email;
-  document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
-  document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
-
-  window.handleLogout = function() { logout(); window.location.href = 'index.html'; };
-
-  let allSales       = [];
-  let allProducts    = [];
-  let currentInvoice = null;
-
-  function load() {
-    allProducts = getProducts();
-    allSales    = getSales();
-
-    const low = allProducts.filter(p => p.quantity <= p.lowStockThreshold).length;
-    const badge = document.getElementById('sidebar-alert-count');
+    var low   = allProducts.filter(function(p) { return p.quantity <= p.lowStockThreshold; }).length;
+    var badge = document.getElementById('sidebar-alert-count');
     if (low > 0) { badge.textContent = low; badge.style.display = ''; }
     else badge.style.display = 'none';
 
     renderSales(allSales);
   }
 
-  load();
+  firebase.auth().onAuthStateChanged(async function(fbUser) {
+    if (!fbUser) { window.location.href = 'index.html'; return; }
+
+    var userName = fbUser.displayName || fbUser.email;
+    document.getElementById('user-name').textContent   = userName;
+    document.getElementById('user-email').textContent  = fbUser.email;
+    document.getElementById('user-avatar').textContent = userName.charAt(0).toUpperCase();
+    document.getElementById('sale-date').value = new Date().toISOString().split('T')[0];
+
+    window.handleLogout = function() {
+      firebase.auth().signOut().then(function() { window.location.href = 'index.html'; });
+    };
+
+    await load();
+  });
 
   // ── Render sales ──────────────────────────────────────────
   function renderSales(sales) {
@@ -301,46 +305,52 @@
   };
 
   // ── Save Sale ─────────────────────────────────────────────
-  window.handleSaveSale = function() {
+  window.handleSaveSale = async function() {
     document.getElementById('sale-error').style.display = 'none';
+    var btn = document.getElementById('save-sale-btn');
+    btn.disabled = true;
 
-    const rows = [...document.querySelectorAll('.sale-item-row')];
-    if (!rows.length) { showSaleError('Add at least one item.'); return; }
+    var rows = Array.from(document.querySelectorAll('.sale-item-row'));
+    if (!rows.length) { showSaleError('Add at least one item.'); btn.disabled = false; return; }
 
-    const items = [];
-    for (const row of rows) {
-      const sel   = row.querySelector('select');
-      const qty   = parseInt(row.querySelector('input[min="1"]')?.value) || 0;
-      const price = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value) || 0;
-      if (!sel.value)  { showSaleError('Select a product for each item row.'); return; }
-      if (qty < 1)     { showSaleError('Quantity must be at least 1.'); return; }
-      const product = allProducts.find(p => p.id === sel.value);
-      if (!product)    { showSaleError('Product not found.'); return; }
-      if (qty > product.quantity) { showSaleError(`Not enough stock for "${product.name}" — only ${product.quantity} available.`); return; }
+    var items = [];
+    for (var i = 0; i < rows.length; i++) {
+      var row   = rows[i];
+      var sel   = row.querySelector('select');
+      var qty   = parseInt(row.querySelector('input[min="1"]') && row.querySelector('input[min="1"]').value) || 0;
+      var price = parseFloat(row.querySelectorAll('input[type="number"]')[1] && row.querySelectorAll('input[type="number"]')[1].value) || 0;
+      if (!sel.value) { showSaleError('Select a product for each item row.'); btn.disabled = false; return; }
+      if (qty < 1)    { showSaleError('Quantity must be at least 1.');         btn.disabled = false; return; }
+      var product = allProducts.find(function(p) { return p.id === sel.value; });
+      if (!product)   { showSaleError('Product not found.');                   btn.disabled = false; return; }
+      if (qty > product.quantity) { showSaleError('Not enough stock for "' + product.name + '" — only ' + product.quantity + ' available.'); btn.disabled = false; return; }
       items.push({ productId: sel.value, productName: product.name, quantity: qty, unitPrice: price, lineTotal: qty * price });
     }
 
-    const subtotal   = items.reduce((s,i) => s + i.lineTotal, 0);
-    const tax        = subtotal * 0.20;
-    const grandTotal = subtotal + tax;
-    const invoiceNum = 'INV-' + Math.floor(100000 + Math.random() * 900000);
+    var subtotal   = items.reduce(function(s, i) { return s + i.lineTotal; }, 0);
+    var tax        = subtotal * 0.20;
+    var grandTotal = subtotal + tax;
+    var invoiceNum = 'INV-' + Math.floor(100000 + Math.random() * 900000);
 
-    const sale = saveSale({
-      invoiceNumber: invoiceNum,
-      customerName:  document.getElementById('sale-customer').value.trim() || 'Walk-in',
-      items, subtotal, tax, grandTotal,
-      saleDate: document.getElementById('sale-date').value,
-    });
+    try {
+      var sale = await saveSale({
+        invoiceNumber: invoiceNum,
+        customerName:  document.getElementById('sale-customer').value.trim() || 'Walk-in',
+        items: items, subtotal: subtotal, tax: tax, grandTotal: grandTotal,
+        saleDate: document.getElementById('sale-date').value,
+      });
 
-    // Decrement stock
-    items.forEach(item => decrementStock(item.productId, item.quantity));
+      await Promise.all(items.map(function(item) { return decrementStock(item.productId, item.quantity); }));
 
-    toast(`Sale recorded — ${invoiceNum}`, 'success');
-    closeSaleModal();
-    load();
-
-    // Auto-show invoice
-    setTimeout(() => viewInvoice(sale.id), 400);
+      closeSaleModal();
+      await load();
+      toast('Sale recorded — ' + invoiceNum, 'success');
+      setTimeout(function() { viewInvoice(sale.id); }, 400);
+    } catch (err) {
+      showSaleError(err.message);
+    } finally {
+      btn.disabled = false;
+    }
   };
 
   function showSaleError(msg) {
@@ -350,7 +360,7 @@
 
   // ── Invoice ───────────────────────────────────────────────
   window.viewInvoice = function(id) {
-    const sale = getSales().find(s => s.id === id);
+    var sale = allSales.find(function(s) { return s.id === id; });
     if (!sale) return;
     currentInvoice = sale;
 

@@ -6,6 +6,9 @@
   <title>StockWise — Sign In</title>
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
 </head>
 <body>
@@ -66,9 +69,6 @@
           <label class="form-label">Password</label>
           <input type="password" class="form-input" id="login-password" placeholder="••••••••" required />
         </div>
-        <div style="margin-bottom:20px; text-align:right">
-          <span style="font-size:12px; color:var(--t2)">Dev mode: any credentials work</span>
-        </div>
         <button type="submit" class="btn btn-primary btn-lg" id="login-btn">
           <span id="login-btn-text">Sign In</span>
           <i class="ph ph-arrow-right"></i>
@@ -107,15 +107,15 @@
 </div>
 
 <script>
-  initStore();
+  // Redirect if already signed in
+  firebase.auth().onAuthStateChanged(function(fbUser) {
+    if (fbUser) window.location.href = 'dashboard.html';
+  });
 
-  // Redirect if already logged in
-  if (getUser()) window.location.href = 'dashboard.html';
-
-  // ── Tab switch ──────────────────────────────────────────────
+  // ── Tab switch ─────────────────────────────────────────────
   window.switchTab = function(tab) {
     clearAlert();
-    const isLogin = tab === 'login';
+    var isLogin = tab === 'login';
     document.getElementById('login-form').style.display    = isLogin ? '' : 'none';
     document.getElementById('register-form').style.display = isLogin ? 'none' : '';
     document.getElementById('tab-login').classList.toggle('active', isLogin);
@@ -126,17 +126,16 @@
       : 'Start managing your inventory today';
   };
 
-  // ── Login ───────────────────────────────────────────────────
-  window.handleLogin = function(e) {
+  // ── Login ──────────────────────────────────────────────────
+  window.handleLogin = async function(e) {
     e.preventDefault();
     clearAlert();
-    const btn     = document.getElementById('login-btn');
-    const btnText = document.getElementById('login-btn-text');
-    btn.disabled  = true;
+    var btn     = document.getElementById('login-btn');
+    var btnText = document.getElementById('login-btn-text');
+    btn.disabled = true;
     btnText.textContent = 'Signing in…';
-
     try {
-      login(
+      await login(
         document.getElementById('login-email').value.trim(),
         document.getElementById('login-password').value
       );
@@ -148,17 +147,16 @@
     }
   };
 
-  // ── Register ────────────────────────────────────────────────
-  window.handleRegister = function(e) {
+  // ── Register ───────────────────────────────────────────────
+  window.handleRegister = async function(e) {
     e.preventDefault();
     clearAlert();
-    const btn     = document.getElementById('register-btn');
-    const btnText = document.getElementById('register-btn-text');
-    btn.disabled  = true;
+    var btn     = document.getElementById('register-btn');
+    var btnText = document.getElementById('register-btn-text');
+    btn.disabled = true;
     btnText.textContent = 'Creating account…';
-
     try {
-      register(
+      await register(
         document.getElementById('reg-firstname').value.trim(),
         document.getElementById('reg-lastname').value.trim(),
         document.getElementById('reg-email').value.trim(),
@@ -173,7 +171,7 @@
   };
 
   function showAlert(msg) {
-    const el = document.getElementById('auth-alert');
+    var el = document.getElementById('auth-alert');
     el.style.display = 'flex';
     document.getElementById('auth-alert-text').textContent = msg;
   }

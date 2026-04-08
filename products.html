@@ -6,6 +6,9 @@
   <title>Products — StockWise</title>
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
 </head>
 <body>
@@ -182,28 +185,30 @@
 <div id="toast-container"></div>
 
 <script>
-  initStore();
+  var allProducts  = [];
+  var deleteTarget = null;
 
-  const user = getUser();
-  if (!user) { window.location.href = 'index.html'; }
-
-  document.getElementById('user-name').textContent   = user.name;
-  document.getElementById('user-email').textContent  = user.email;
-  document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
-
-  window.handleLogout = function() { logout(); window.location.href = 'index.html'; };
-
-  let allProducts  = [];
-  let deleteTarget = null;
-
-  function load() {
-    allProducts = getProducts();
+  async function load() {
+    allProducts = await getProducts();
     populateCategoryFilter();
     renderProducts(allProducts);
     updateCount(allProducts);
   }
 
-  load();
+  firebase.auth().onAuthStateChanged(async function(fbUser) {
+    if (!fbUser) { window.location.href = 'index.html'; return; }
+
+    var userName = fbUser.displayName || fbUser.email;
+    document.getElementById('user-name').textContent   = userName;
+    document.getElementById('user-email').textContent  = fbUser.email;
+    document.getElementById('user-avatar').textContent = userName.charAt(0).toUpperCase();
+
+    window.handleLogout = function() {
+      firebase.auth().signOut().then(function() { window.location.href = 'index.html'; });
+    };
+
+    await load();
+  });
 
   function updateCount(products) {
     const low = products.filter(p => p.quantity <= p.lowStockThreshold).length;
@@ -335,32 +340,42 @@
   };
 
   // ── Save product ──────────────────────────────────────────
-  window.handleSaveProduct = function(e) {
+  window.handleSaveProduct = async function(e) {
     e.preventDefault();
-    const id = document.getElementById('product-id').value;
-
-    saveProduct({
-      id:                id || undefined,
-      name:              document.getElementById('prod-name').value.trim(),
-      category:          document.getElementById('prod-category').value.trim(),
-      price:             parseFloat(document.getElementById('prod-price').value),
-      quantity:          parseInt(document.getElementById('prod-quantity').value),
-      lowStockThreshold: parseInt(document.getElementById('prod-threshold').value),
-      description:       document.getElementById('prod-description').value.trim(),
-    });
-
-    toast(id ? 'Product updated' : 'Product added', 'success');
-    closeModal();
-    load();
+    var id = document.getElementById('product-id').value;
+    var btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    try {
+      await saveProduct({
+        id:                id || undefined,
+        name:              document.getElementById('prod-name').value.trim(),
+        category:          document.getElementById('prod-category').value.trim(),
+        price:             parseFloat(document.getElementById('prod-price').value),
+        quantity:          parseInt(document.getElementById('prod-quantity').value),
+        lowStockThreshold: parseInt(document.getElementById('prod-threshold').value),
+        description:       document.getElementById('prod-description').value.trim(),
+      });
+      toast(id ? 'Product updated' : 'Product added', 'success');
+      closeModal();
+      await load();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
   };
 
   // ── Delete ────────────────────────────────────────────────
-  window.confirmDelete = function() {
+  window.confirmDelete = async function() {
     if (!deleteTarget) return;
-    deleteProduct(deleteTarget);
-    toast('Product deleted', 'success');
-    closeDeleteModal();
-    load();
+    try {
+      await deleteProduct(deleteTarget);
+      toast('Product deleted', 'success');
+      closeDeleteModal();
+      await load();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
 
   // ── Toast ─────────────────────────────────────────────────

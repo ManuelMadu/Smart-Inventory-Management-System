@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
 </head>
 <body>
@@ -155,30 +158,35 @@
 <div id="toast-container"></div>
 
 <script>
-  initStore();
+  var allProducts = [];
+  var allSales    = [];
+  var prodCat     = {};
+  var charts      = {};
 
-  const user = getUser();
-  if (!user) { window.location.href = 'index.html'; }
+  firebase.auth().onAuthStateChanged(async function(fbUser) {
+    if (!fbUser) { window.location.href = 'index.html'; return; }
 
-  document.getElementById('user-name').textContent   = user.name;
-  document.getElementById('user-email').textContent  = user.email;
-  document.getElementById('user-avatar').textContent = user.name.charAt(0).toUpperCase();
+    var userName = fbUser.displayName || fbUser.email;
+    document.getElementById('user-name').textContent   = userName;
+    document.getElementById('user-email').textContent  = fbUser.email;
+    document.getElementById('user-avatar').textContent = userName.charAt(0).toUpperCase();
 
-  window.handleLogout = function() { logout(); window.location.href = 'index.html'; };
+    window.handleLogout = function() {
+      firebase.auth().signOut().then(function() { window.location.href = 'index.html'; });
+    };
 
-  const allProducts = getProducts();
-  const allSales    = getSales();
+    allProducts = await getProducts();
+    allSales    = await getSales();
 
-  // Sidebar badge
-  const low = allProducts.filter(p => p.quantity <= p.lowStockThreshold).length;
-  const badge = document.getElementById('sidebar-alert-count');
-  if (low > 0) { badge.textContent = low; badge.style.display = ''; }
+    var low   = allProducts.filter(function(p) { return p.quantity <= p.lowStockThreshold; }).length;
+    var badge = document.getElementById('sidebar-alert-count');
+    if (low > 0) { badge.textContent = low; badge.style.display = ''; }
 
-  // Build product → category map
-  const prodCat = {};
-  allProducts.forEach(p => { prodCat[p.id] = p.category || 'Uncategorised'; });
+    prodCat = {};
+    allProducts.forEach(function(p) { prodCat[p.id] = p.category || 'Uncategorised'; });
 
-  let charts = {};
+    reloadCharts();
+  });
 
   window.reloadCharts = function() {
     const days   = parseInt(document.getElementById('period-filter').value);
@@ -196,8 +204,6 @@
     renderCategoryChart(sales);
     renderTopItemsTable(sales);
   };
-
-  reloadCharts();
 
   // ── Stats ─────────────────────────────────────────────────
   function renderStats(sales) {
