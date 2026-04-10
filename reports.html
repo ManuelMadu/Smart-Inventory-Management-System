@@ -166,7 +166,15 @@
   firebase.auth().onAuthStateChanged(async function(fbUser) {
     if (!fbUser) { window.location.href = 'index.html'; return; }
 
-    var userName = fbUser.displayName || fbUser.email;
+    var userName = fbUser.displayName;
+    if (!userName) {
+      var userDoc = await db.collection('users').doc(fbUser.uid).get();
+      if (userDoc.exists) {
+        var d = userDoc.data();
+        userName = (d.firstName || '') + (d.lastName ? ' ' + d.lastName : '');
+      }
+      userName = userName && userName.trim() ? userName.trim() : fbUser.email;
+    }
     document.getElementById('user-name').textContent   = userName;
     document.getElementById('user-email').textContent  = fbUser.email;
     document.getElementById('user-avatar').textContent = userName.charAt(0).toUpperCase();

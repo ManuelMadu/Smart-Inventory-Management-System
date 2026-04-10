@@ -108,8 +108,9 @@
 
 <script>
   // Redirect if already signed in
+  var authHandled = false;
   firebase.auth().onAuthStateChanged(function(fbUser) {
-    if (fbUser) window.location.href = 'dashboard.html';
+    if (fbUser && !authHandled) window.location.href = 'dashboard.html';
   });
 
   // ── Tab switch ─────────────────────────────────────────────
@@ -156,6 +157,7 @@
     btn.disabled = true;
     btnText.textContent = 'Creating account…';
     try {
+      authHandled = true;
       await register(
         document.getElementById('reg-firstname').value.trim(),
         document.getElementById('reg-lastname').value.trim(),
