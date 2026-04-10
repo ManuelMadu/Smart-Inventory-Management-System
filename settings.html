@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings — StockWise</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="js/store.js"></script>
+  <script>if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark-mode');</script>
+  <style>
+    .settings-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      box-shadow: var(--sh-sm);
+    }
+    .settings-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--t1);
+      margin-bottom: 4px;
+    }
+    .settings-section-desc {
+      font-size: 13px;
+      color: var(--t2);
+      margin-bottom: 24px;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-top: 1px solid var(--border);
+    }
+    .settings-row:first-of-type { border-top: none; padding-top: 0; }
+    .settings-row-label { font-size: 14px; font-weight: 500; color: var(--t1); }
+    .settings-row-sub   { font-size: 12px; color: var(--t2); margin-top: 2px; }
+
+    /* Toggle switch */
+    .toggle-wrap { display: flex; align-items: center; gap: 10px; }
+    .toggle-label { font-size: 13px; color: var(--t2); min-width: 32px; }
+    .toggle {
+      position: relative;
+      width: 48px; height: 26px;
+      cursor: pointer;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--border-str);
+      border-radius: 999px;
+      transition: background 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 20px; height: 20px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      transition: transform 0.2s var(--ease);
+    }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(22px); }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon"><i class="ph ph-chart-bar"></i></div>
+      <div class="sidebar-logo-text">
+        <strong>StockWise</strong><span>Inventory</span>
+      </div>
+    </div>
+    <span class="nav-section-label">Main</span>
+    <a href="dashboard.html" class="nav-item"><i class="ph ph-squares-four"></i> Dashboard</a>
+    <a href="products.html"  class="nav-item"><i class="ph ph-package"></i> Products</a>
+    <a href="sales.html"     class="nav-item"><i class="ph ph-receipt"></i> Sales</a>
+    <a href="reports.html"   class="nav-item"><i class="ph ph-chart-line-up"></i> Reports</a>
+    <span class="nav-section-label" style="margin-top:16px">Alerts</span>
+    <a href="products.html" class="nav-item">
+      <i class="ph ph-warning"></i> Low Stock
+    </a>
+    <div class="sidebar-spacer"></div>
+    <a href="settings.html" class="nav-item active"><i class="ph ph-gear"></i> Settings</a>
+    <div class="sidebar-user" style="margin-top:4px">
+      <div class="sidebar-avatar" id="user-avatar">—</div>
+      <div>
+        <div class="sidebar-user-name" id="user-name">—</div>
+        <div class="sidebar-user-email" id="user-email">—</div>
+      </div>
+    </div>
+    <button class="nav-item" onclick="handleLogout()" style="margin-top:4px; color:var(--danger)">
+      <i class="ph ph-sign-out"></i> Sign Out
+    </button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <header class="page-header">
+      <div>
+        <h1>Settings</h1>
+        <p>Manage your preferences</p>
+      </div>
+    </header>
+
+    <div style="max-width:620px">
+
+      <!-- Appearance -->
+      <div class="settings-section">
+        <div class="settings-section-title">Appearance</div>
+        <div class="settings-section-desc">Customise how StockWise looks for you.</div>
+
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Dark Mode</div>
+            <div class="settings-row-sub">Switch between light and dark theme</div>
+          </div>
+          <div class="toggle-wrap">
+            <span class="toggle-label" id="dark-label">Off</span>
+            <label class="toggle">
+              <input type="checkbox" id="dark-toggle" />
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+  firebase.auth().onAuthStateChanged(async function(fbUser) {
+    if (!fbUser) { window.location.href = 'index.html'; return; }
+
+    var userName = fbUser.displayName;
+    if (!userName) {
+      var userDoc = await db.collection('users').doc(fbUser.uid).get();
+      if (userDoc.exists) {
+        var d = userDoc.data();
+        userName = (d.firstName || '') + (d.lastName ? ' ' + d.lastName : '');
+      }
+      userName = userName && userName.trim() ? userName.trim() : fbUser.email;
+    }
+    document.getElementById('user-name').textContent   = userName;
+    document.getElementById('user-email').textContent  = fbUser.email;
+    document.getElementById('user-avatar').textContent = userName.charAt(0).toUpperCase();
+
+    window.handleLogout = function() {
+      firebase.auth().signOut().then(function() { window.location.href = 'index.html'; });
+    };
+
+    // Set toggle state from localStorage
+    var isDark = localStorage.getItem('darkMode') === 'true';
+    var toggle = document.getElementById('dark-toggle');
+    toggle.checked = isDark;
+    document.getElementById('dark-label').textContent = isDark ? 'On' : 'Off';
+
+    toggle.addEventListener('change', function() {
+      var on = this.checked;
+      if (on) {
+        document.documentElement.classList.add('dark-mode');
+        localStorage.setItem('darkMode', 'true');
+      } else {
+        document.documentElement.classList.remove('dark-mode');
+        localStorage.setItem('darkMode', 'false');
+      }
+      document.getElementById('dark-label').textContent = on ? 'On' : 'Off';
+    });
+  });
+</script>
+
+</body>
+</html>
