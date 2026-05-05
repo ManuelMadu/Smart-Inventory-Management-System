@@ -11,6 +11,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/calc.js"></script>
   <script>if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
@@ -52,7 +53,7 @@
     <header class="page-header">
       <div>
         <h1>Reports</h1>
-        <p>Analyse sales performance and stock trends</p>
+        <p>See how your sales are doing and where stock is heading</p>
       </div>
       <div class="header-actions">
         <select class="filter-sel" id="period-filter" onchange="reloadCharts()" style="padding:7px 32px 7px 12px">
@@ -217,50 +218,24 @@
 
   // ── Stats ─────────────────────────────────────────────────
   function renderStats(sales) {
-    const revenue = sales.reduce((s,x) => s + (x.grandTotal||0), 0);
-    const units   = sales.reduce((s,x) => s + (x.items||[]).reduce((u,i) => u + (i.quantity||0), 0), 0);
-    const avg     = sales.length ? revenue / sales.length : 0;
-    document.getElementById('rep-revenue').textContent = '£' + revenue.toFixed(2);
-    document.getElementById('rep-sales').textContent   = sales.length;
-    document.getElementById('rep-avg').textContent     = '£' + avg.toFixed(2);
-    document.getElementById('rep-units').textContent   = units;
+    const stats = StockWiseCalc.calcReportStats(sales);
+    document.getElementById('rep-revenue').textContent = '£' + stats.revenue.toFixed(2);
+    document.getElementById('rep-sales').textContent   = stats.salesCount;
+    document.getElementById('rep-avg').textContent     = '£' + stats.avgOrderValue.toFixed(2);
+    document.getElementById('rep-units').textContent   = stats.unitsSold;
   }
 
   // ── Revenue over time ─────────────────────────────────────
   function renderRevenueChart(sales, days) {
-    const buckets = {};
-    const today   = new Date();
-
-    if (days <= 30) {
-      for (let i = days-1; i >= 0; i--) {
-        const d = new Date(today); d.setDate(today.getDate()-i);
-        buckets[d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})] = 0;
-      }
-      sales.forEach(s => {
-        const d   = new Date(s.createdAt);
-        const key = d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-        if (key in buckets) buckets[key] += s.grandTotal||0;
-      });
-      document.getElementById('revenue-chart-sub').textContent = `Daily revenue — last ${days} days`;
-    } else {
-      for (let i = 11; i >= 0; i--) {
-        const d   = new Date(today.getFullYear(), today.getMonth()-i, 1);
-        buckets[d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'})] = 0;
-      }
-      sales.forEach(s => {
-        const d   = new Date(s.createdAt);
-        const key = d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'});
-        if (key in buckets) buckets[key] += s.grandTotal||0;
-      });
-      document.getElementById('revenue-chart-sub').textContent = 'Monthly revenue — last 12 months';
-    }
+    const { labels, data, subtitle } = StockWiseCalc.bucketRevenueForPeriod(sales, days, new Date());
+    document.getElementById('revenue-chart-sub').textContent = subtitle;
 
     charts.revenue = new Chart(document.getElementById('revenueChart'), {
       type: 'line',
       data: {
-        labels: Object.keys(buckets),
+        labels,
         datasets: [{
-          data:            Object.values(buckets),
+          data,
           borderColor:     'rgba(5,150,105,0.9)',
           backgroundColor: 'rgba(5,150,105,0.07)',
           borderWidth: 2, pointRadius: 3,
@@ -281,9 +256,7 @@
 
   // ── Top products ──────────────────────────────────────────
   function renderTopProductsChart(sales) {
-    const rev = {};
-    sales.forEach(s => (s.items||[]).forEach(i => { rev[i.productName] = (rev[i.productName]||0) + (i.lineTotal||0); }));
-    const sorted = Object.entries(rev).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const sorted = StockWiseCalc.rankProductsByRevenue(sales, 8);
 
     charts.topProducts = new Chart(document.getElementById('topProductsChart'), {
       type: 'bar',
@@ -309,13 +282,7 @@
 
   // ── Category chart ────────────────────────────────────────
   function renderCategoryChart(sales) {
-    const catRev = {};
-    sales.forEach(s => (s.items||[]).forEach(i => {
-      const cat = prodCat[i.productId] || 'Uncategorised';
-      catRev[cat] = (catRev[cat]||0) + (i.lineTotal||0);
-    }));
-
-    const sorted  = Object.entries(catRev).sort((a,b)=>b[1]-a[1]);
+    const sorted  = StockWiseCalc.aggregateCategoryRevenue(sales, prodCat);
     const total   = sorted.reduce((s,[,v])=>s+v,0);
     const palette = ['#059669','#0284c7','#d97706','#7c3aed','#dc2626','#0891b2','#16a34a','#9333ea'];
 
@@ -343,19 +310,12 @@
 
   // ── Top items table ───────────────────────────────────────
   function renderTopItemsTable(sales) {
-    const stats = {};
-    sales.forEach(s => (s.items||[]).forEach(i => {
-      if (!stats[i.productName]) stats[i.productName] = { units:0, revenue:0 };
-      stats[i.productName].units   += i.quantity||0;
-      stats[i.productName].revenue += i.lineTotal||0;
-    }));
-
-    const sorted   = Object.entries(stats).sort((a,b)=>b[1].revenue-a[1].revenue).slice(0,10);
+    const sorted   = StockWiseCalc.prepareBestSellingItems(sales, 10);
     const totalRev = sorted.reduce((s,[,v])=>s+v.revenue,0);
     const tbody    = document.getElementById('top-items-body');
 
     if (!sorted.length) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:28px 0"><p>No sales data in this period</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:28px 0"><p>No sales in this period</p></div></td></tr>`;
       return;
     }
 

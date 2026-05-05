@@ -12,6 +12,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/calc.js"></script>
   <script>if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
@@ -53,7 +54,7 @@
     <header class="page-header">
       <div>
         <h1>Sales</h1>
-        <p>Record sales and generate PDF invoices</p>
+        <p>Log a sale and download the invoice when you're done</p>
       </div>
       <div class="header-actions">
         <button class="btn btn-accent btn-sm" onclick="openNewSaleModal()">
@@ -67,7 +68,7 @@
       <div class="toolbar">
         <div class="search-wrap">
           <i class="ph ph-magnifying-glass"></i>
-          <input type="text" class="search-input" id="search-input" placeholder="Search by customer or invoice…" oninput="filterSales()" />
+          <input type="text" class="search-input" id="search-input" placeholder="Search by name or invoice number…" oninput="filterSales()" />
         </div>
         <input type="date" class="filter-sel" id="filter-date" onchange="filterSales()" style="padding:8px 13px; max-width:160px" />
       </div>
@@ -101,8 +102,8 @@
   <div class="modal modal-lg">
     <div class="modal-header">
       <div>
-        <div class="modal-title">Record New Sale</div>
-        <div class="modal-subtitle">Select products and enter quantities</div>
+        <div class="modal-title">New Sale</div>
+        <div class="modal-subtitle">Pick your items and set the quantities</div>
       </div>
       <button class="modal-close" onclick="closeSaleModal()"><i class="ph ph-x"></i></button>
     </div>
@@ -139,7 +140,7 @@
       <button class="btn btn-secondary" onclick="closeSaleModal()">Cancel</button>
       <button class="btn btn-primary" id="save-sale-btn" onclick="handleSaveSale()">
         <i class="ph ph-receipt"></i>
-        <span id="save-sale-text">Record Sale</span>
+        <span id="save-sale-text">Save Sale</span>
       </button>
     </div>
   </div>
@@ -217,8 +218,8 @@
       tbody.innerHTML = `<tr><td colspan="8">
         <div class="empty-state">
           <div class="empty-icon"><i class="ph ph-receipt"></i></div>
-          <h3>No sales recorded</h3>
-          <p>Record your first sale to get started.</p>
+          <h3>No sales yet</h3>
+          <p>Once you log a sale, it'll show up here.</p>
           <button class="btn btn-accent btn-sm" onclick="openNewSaleModal()"><i class="ph ph-plus"></i> New Sale</button>
         </div>
       </td></tr>`;
@@ -246,14 +247,9 @@
 
   // ── Filter ────────────────────────────────────────────────
   window.filterSales = function() {
-    const search = document.getElementById('search-input').value.toLowerCase();
+    const search = document.getElementById('search-input').value;
     const date   = document.getElementById('filter-date').value;
-    const filtered = allSales.filter(s => {
-      const ms = !search || (s.customerName||'').toLowerCase().includes(search) || s.invoiceNumber.toLowerCase().includes(search);
-      const md = !date   || new Date(s.createdAt).toISOString().split('T')[0] === date;
-      return ms && md;
-    });
-    renderSales(filtered);
+    renderSales(StockWiseCalc.filterSales(allSales, search, date));
   };
 
   // ── New Sale Modal ────────────────────────────────────────
@@ -306,12 +302,12 @@
     document.querySelectorAll('.sale-item-row').forEach(row => {
       const qty   = parseFloat(row.querySelector('input[min="1"]')?.value) || 0;
       const price = parseFloat(row.querySelectorAll('input[type="number"]')[1]?.value) || 0;
-      sub += qty * price;
+      sub += StockWiseCalc.lineTotal(qty, price);
     });
-    const tax = sub * 0.20;
-    document.getElementById('sum-sub').textContent   = '£' + sub.toFixed(2);
-    document.getElementById('sum-tax').textContent   = '£' + tax.toFixed(2);
-    document.getElementById('sum-total').textContent = '£' + (sub + tax).toFixed(2);
+    const totals = StockWiseCalc.calcSaleTotals(sub);
+    document.getElementById('sum-sub').textContent   = '£' + totals.subtotal.toFixed(2);
+    document.getElementById('sum-tax').textContent   = '£' + totals.tax.toFixed(2);
+    document.getElementById('sum-total').textContent = '£' + totals.grandTotal.toFixed(2);
   };
 
   // ── Save Sale ─────────────────────────────────────────────
@@ -321,7 +317,7 @@
     btn.disabled = true;
 
     var rows = Array.from(document.querySelectorAll('.sale-item-row'));
-    if (!rows.length) { showSaleError('Add at least one item.'); btn.disabled = false; return; }
+    if (!rows.length) { showSaleError('You need at least one item.'); btn.disabled = false; return; }
 
     var items = [];
     for (var i = 0; i < rows.length; i++) {
@@ -329,24 +325,25 @@
       var sel   = row.querySelector('select');
       var qty   = parseInt(row.querySelector('input[min="1"]') && row.querySelector('input[min="1"]').value) || 0;
       var price = parseFloat(row.querySelectorAll('input[type="number"]')[1] && row.querySelectorAll('input[type="number"]')[1].value) || 0;
-      if (!sel.value) { showSaleError('Select a product for each item row.'); btn.disabled = false; return; }
-      if (qty < 1)    { showSaleError('Quantity must be at least 1.');         btn.disabled = false; return; }
+      if (!sel.value) { showSaleError('Pick a product for every row.'); btn.disabled = false; return; }
+      if (qty < 1)    { showSaleError('Quantity has to be at least 1.');       btn.disabled = false; return; }
       var product = allProducts.find(function(p) { return p.id === sel.value; });
       if (!product)   { showSaleError('Product not found.');                   btn.disabled = false; return; }
-      if (qty > product.quantity) { showSaleError('Not enough stock for "' + product.name + '" — only ' + product.quantity + ' available.'); btn.disabled = false; return; }
-      items.push({ productId: sel.value, productName: product.name, quantity: qty, unitPrice: price, lineTotal: qty * price });
+      items.push({ productId: sel.value, productName: product.name, quantity: qty, unitPrice: price, lineTotal: StockWiseCalc.lineTotal(qty, price) });
     }
 
+    var stockCheck = StockWiseCalc.validateStockAvailability(items, allProducts);
+    if (!stockCheck.valid) { showSaleError(stockCheck.error); btn.disabled = false; return; }
+
     var subtotal   = items.reduce(function(s, i) { return s + i.lineTotal; }, 0);
-    var tax        = subtotal * 0.20;
-    var grandTotal = subtotal + tax;
-    var invoiceNum = 'INV-' + Math.floor(100000 + Math.random() * 900000);
+    var totals     = StockWiseCalc.calcSaleTotals(subtotal);
+    var invoiceNum = StockWiseCalc.formatInvoiceNumber(Math.floor(100000 + Math.random() * 900000));
 
     try {
       var sale = await saveSale({
         invoiceNumber: invoiceNum,
         customerName:  document.getElementById('sale-customer').value.trim() || 'Walk-in',
-        items: items, subtotal: subtotal, tax: tax, grandTotal: grandTotal,
+        items: items, subtotal: totals.subtotal, tax: totals.tax, grandTotal: totals.grandTotal,
         saleDate: document.getElementById('sale-date').value,
       });
 
@@ -354,7 +351,7 @@
 
       closeSaleModal();
       await load();
-      toast('Sale recorded — ' + invoiceNum, 'success');
+      toast('Sale saved — ' + invoiceNum, 'success');
       setTimeout(function() { viewInvoice(sale.id); }, 400);
     } catch (err) {
       showSaleError(err.message);

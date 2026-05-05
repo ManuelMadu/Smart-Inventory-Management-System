@@ -1,0 +1,26 @@
+{
+  "name": "smart-inventory-system",
+  "version": "1.0.0",
+  "description": "Final year project – Smart Inventory Management System",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ManuelMadu/Honour-Stage-Project-smart-inventory-management-system-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ManuelMadu/Honour-Stage-Project-smart-inventory-management-system-/issues"
+  },
+  "homepage": "https://github.com/ManuelMadu/Honour-Stage-Project-smart-inventory-management-system-#readme",
+  "devDependencies": {
+    "vitest": "^4.1.5"
+  }
+}

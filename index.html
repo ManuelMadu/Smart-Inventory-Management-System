@@ -24,7 +24,7 @@
 
     <div class="auth-headline">
       <h1>Inventory that<br><em>works for you</em></h1>
-      <p>Track products, record sales, generate invoices, and get low-stock alerts — all in one clean dashboard built for small businesses.</p>
+      <p>Track your stock, log sales, create invoices, and stay on top of low inventory — all from one place.</p>
     </div>
 
     <div class="auth-stats">
@@ -47,7 +47,7 @@
   <div class="auth-panel">
     <div class="auth-form-wrap">
       <h2 class="auth-form-heading">Welcome back</h2>
-      <p class="auth-form-sub">Sign in to your inventory dashboard</p>
+      <p class="auth-form-sub">Good to see you again</p>
 
       <div class="auth-tabs">
         <button class="auth-tab active" id="tab-login"    onclick="switchTab('login')">Sign In</button>
@@ -93,8 +93,8 @@
         </div>
         <div class="form-group" style="margin-bottom:20px">
           <label class="form-label">Password</label>
-          <input type="password" class="form-input" id="reg-password" placeholder="At least 6 characters" required minlength="6" />
-          <span class="form-helper">Minimum 6 characters</span>
+          <input type="password" class="form-input" id="reg-password" placeholder="Pick a strong password" required minlength="6" />
+          <span class="form-helper">At least 6 characters</span>
         </div>
         <button type="submit" class="btn btn-accent btn-lg" id="register-btn">
           <span id="register-btn-text">Create Account</span>
@@ -123,8 +123,8 @@
     document.getElementById('tab-register').classList.toggle('active', !isLogin);
     document.querySelector('.auth-form-heading').textContent = isLogin ? 'Welcome back' : 'Create account';
     document.querySelector('.auth-form-sub').textContent     = isLogin
-      ? 'Sign in to your inventory dashboard'
-      : 'Start managing your inventory today';
+      ? 'Good to see you again'
+      : "Let's get you set up";
   };
 
   // ── Login ──────────────────────────────────────────────────
@@ -134,7 +134,7 @@
     var btn     = document.getElementById('login-btn');
     var btnText = document.getElementById('login-btn-text');
     btn.disabled = true;
-    btnText.textContent = 'Signing in…';
+    btnText.textContent = 'Signing you in…';
     try {
       await login(
         document.getElementById('login-email').value.trim(),
@@ -155,7 +155,7 @@
     var btn     = document.getElementById('register-btn');
     var btnText = document.getElementById('register-btn-text');
     btn.disabled = true;
-    btnText.textContent = 'Creating account…';
+    btnText.textContent = 'Setting things up…';
     try {
       authHandled = true;
       await register(

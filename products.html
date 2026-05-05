@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/calc.js"></script>
   <script>if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
@@ -106,7 +107,7 @@
     <div class="modal-header">
       <div>
         <div class="modal-title" id="modal-title">Add Product</div>
-        <div class="modal-subtitle">Fill in the product details below</div>
+        <div class="modal-subtitle">Fill in the details below</div>
       </div>
       <button class="modal-close" onclick="closeModal()"><i class="ph ph-x"></i></button>
     </div>
@@ -138,7 +139,7 @@
           <div class="form-group">
             <label class="form-label">Low stock threshold</label>
             <input type="number" class="form-input" id="prod-threshold" placeholder="5" min="0" required />
-            <span class="form-helper">Alert when stock falls below this</span>
+            <span class="form-helper">You'll get an alert when it drops below this</span>
           </div>
         </div>
 
@@ -165,14 +166,14 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Delete Product</div>
-        <div class="modal-subtitle">This action cannot be undone</div>
+        <div class="modal-subtitle">You can't undo this</div>
       </div>
       <button class="modal-close" onclick="closeDeleteModal()"><i class="ph ph-x"></i></button>
     </div>
     <div class="modal-body">
       <div class="alert-banner warning">
         <i class="ph ph-warning"></i>
-        <span>Deleting <strong id="delete-product-name"></strong> will permanently remove it from your inventory.</span>
+        <span>Once deleted, <strong id="delete-product-name"></strong> is gone for good.</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -221,7 +222,7 @@
   });
 
   function updateCount(products) {
-    const low = products.filter(p => p.quantity <= p.lowStockThreshold).length;
+    const low = StockWiseCalc.filterLowStock(products).length;
     document.getElementById('product-count').textContent =
       `${products.length} product${products.length !== 1 ? 's' : ''} · ${low} low stock`;
     const badge = document.getElementById('sidebar-alert-count');
@@ -245,7 +246,7 @@
         <div class="empty-state">
           <div class="empty-icon"><i class="ph ph-package"></i></div>
           <h3>No products found</h3>
-          <p>Add your first product to start tracking inventory.</p>
+          <p>Add a product to get started.</p>
           <button class="btn btn-accent btn-sm" onclick="openAddModal()"><i class="ph ph-plus"></i> Add Product</button>
         </div>
       </td></tr>`;
@@ -253,9 +254,8 @@
     }
 
     tbody.innerHTML = products.map(p => {
-      const max   = Math.max(p.quantity, p.lowStockThreshold * 3, 1);
-      const pct   = Math.min(100, (p.quantity / max) * 100);
-      const level = p.quantity === 0 ? 'lo' : p.quantity <= p.lowStockThreshold ? 'mid' : 'hi';
+      const pct   = StockWiseCalc.stockBarPct(p);
+      const level = StockWiseCalc.stockLevel(p);
       const badge = p.quantity === 0
         ? `<span class="badge badge-red">Out of stock</span>`
         : p.quantity <= p.lowStockThreshold
@@ -297,19 +297,10 @@
 
   // ── Filter ────────────────────────────────────────────────
   window.filterProducts = function() {
-    const search   = document.getElementById('search-input').value.toLowerCase();
+    const search   = document.getElementById('search-input').value;
     const category = document.getElementById('filter-category').value;
     const status   = document.getElementById('filter-status').value;
-    const filtered = allProducts.filter(p => {
-      const ms = !search   || p.name.toLowerCase().includes(search) || (p.category||'').toLowerCase().includes(search);
-      const mc = !category || p.category === category;
-      const mv = !status   ||
-        (status === 'out' && p.quantity === 0) ||
-        (status === 'low' && p.quantity > 0 && p.quantity <= p.lowStockThreshold) ||
-        (status === 'ok'  && p.quantity > p.lowStockThreshold);
-      return ms && mc && mv;
-    });
-    renderProducts(filtered);
+    renderProducts(StockWiseCalc.filterProducts(allProducts, search, category, status));
   };
 
   // ── Modals ────────────────────────────────────────────────

@@ -11,6 +11,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/calc.js"></script>
   <script>if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark-mode');</script>
 </head>
 <body>
@@ -100,7 +101,7 @@
             <div class="card-header">
               <div>
                 <div class="card-title">Sales Overview</div>
-                <div class="card-subtitle">Daily revenue for the last 7 days</div>
+                <div class="card-subtitle">Revenue over the past 7 days</div>
               </div>
             </div>
             <div class="card-body">
@@ -155,7 +156,7 @@
           <div class="card">
             <div class="card-header">
               <div class="card-title">Stock Levels</div>
-              <div class="card-subtitle">Top products</div>
+              <div class="card-subtitle">Your top products</div>
             </div>
             <div class="card-body">
               <div class="chart-wrap" style="height:200px">
@@ -208,44 +209,40 @@
 
   // ── Stats ─────────────────────────────────────────────────
   function renderStats(products, sales) {
-    const now        = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lowStock   = products.filter(p => p.quantity <= p.lowStockThreshold);
-    const thisMoSales= sales.filter(s => new Date(s.createdAt) >= monthStart);
-    const revenue    = thisMoSales.reduce((sum, s) => sum + (s.grandTotal || 0), 0);
+    const stats = StockWiseCalc.calcDashboardStats(products, sales, new Date());
 
     document.getElementById('stat-products').textContent  = products.length;
-    document.getElementById('stat-lowstock').textContent  = lowStock.length;
-    document.getElementById('stat-sales').textContent     = thisMoSales.length;
-    document.getElementById('stat-revenue').textContent   = '£' + revenue.toFixed(2);
+    document.getElementById('stat-lowstock').textContent  = stats.lowStockCount;
+    document.getElementById('stat-sales').textContent     = stats.monthlySalesCount;
+    document.getElementById('stat-revenue').textContent   = '£' + stats.monthlyRevenue.toFixed(2);
 
     const badge = document.getElementById('sidebar-alert-count');
-    if (lowStock.length > 0) { badge.textContent = lowStock.length; badge.style.display = ''; }
+    if (stats.lowStockCount > 0) { badge.textContent = stats.lowStockCount; badge.style.display = ''; }
     else badge.style.display = 'none';
   }
 
   // ── Low Stock ─────────────────────────────────────────────
   function renderLowStock(products) {
-    const low  = products.filter(p => p.quantity <= p.lowStockThreshold).sort((a,b) => a.quantity - b.quantity);
+    const low  = StockWiseCalc.filterLowStock(products);
     const sub  = document.getElementById('low-stock-subtitle');
     const list = document.getElementById('low-stock-list');
 
     if (!low.length) {
-      sub.textContent = 'All products are well-stocked';
+      sub.textContent = "You're all stocked up";
       list.innerHTML  = `<div class="empty-state" style="padding:24px 0">
         <div class="empty-icon"><i class="ph ph-checks"></i></div>
-        <p>Everything is sufficiently stocked</p>
+        <p>Everything looks good</p>
       </div>`;
       return;
     }
 
-    sub.textContent = `${low.length} product${low.length > 1 ? 's' : ''} need restocking`;
+    sub.textContent = `${low.length} item${low.length > 1 ? 's' : ''} running low`;
     list.innerHTML  = low.slice(0, 6).map(p => `
       <div class="alert-item">
         <div class="prod-avatar"><i class="ph ph-package"></i></div>
         <div class="alert-item-info">
           <div class="alert-item-name">${p.name}</div>
-          <div class="alert-item-sub">Threshold: ${p.lowStockThreshold} units</div>
+          <div class="alert-item-sub">Restock at ${p.lowStockThreshold} units</div>
         </div>
         <span class="alert-item-qty ${p.quantity === 0 ? 'crit' : 'warn'}">${p.quantity} left</span>
       </div>`).join('');
@@ -255,7 +252,7 @@
   function renderRecentSales(sales) {
     const tbody = document.getElementById('recent-sales-body');
     if (!sales.length) {
-      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:30px 0"><p>No sales yet</p></div></td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:30px 0"><p>Nothing here yet</p></div></td></tr>`;
       return;
     }
     tbody.innerHTML = sales.map(s => {
@@ -273,19 +270,7 @@
 
   // ── Sales Chart ───────────────────────────────────────────
   function renderSalesChart(sales) {
-    const today  = new Date();
-    const labels = [];
-    const data   = [];
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      labels.push(d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric' }));
-      const rev = sales
-        .filter(s => new Date(s.createdAt).toDateString() === d.toDateString())
-        .reduce((sum, s) => sum + (s.grandTotal || 0), 0);
-      data.push(rev);
-    }
+    const { labels, data } = StockWiseCalc.bucketRevenueByDay(sales, new Date());
 
     new Chart(document.getElementById('salesChart'), {
       type: 'bar',
@@ -313,7 +298,7 @@
 
   // ── Stock Chart ───────────────────────────────────────────
   function renderStockChart(products) {
-    const top = [...products].sort((a,b) => b.quantity - a.quantity).slice(0, 7);
+    const top = StockWiseCalc.rankProductsByStock(products, 7);
     if (!top.length) return;
 
     new Chart(document.getElementById('stockChart'), {
