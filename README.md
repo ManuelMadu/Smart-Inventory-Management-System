@@ -6,9 +6,9 @@ to reorder before you run out.
 
 **Live:** https://stockwise-7a8cb.web.app/
 
-The "smart" part is the point: instead of just storing your numbers, StockWise reads your
-own sales history and works out what's about to happen — which products are running out,
-which ones aren't moving, and where your revenue actually comes from.
+The "smart" part is the point. Most inventory apps just store your numbers and leave the
+thinking to you. This one reads your sales history and tells you what's about to run out,
+what isn't selling, and where the money's actually coming from.
 
 ## What it does
 
@@ -17,9 +17,9 @@ which ones aren't moving, and where your revenue actually comes from.
 - **Smart insights** — short, plain-English notes at the top of the dashboard, e.g.
   "Revenue is up 23% on last week", "Coffee Beans is running out", "3 items haven't sold in
   a month". No digging through charts to find out what changed.
-- **Reorder suggestions** — instead of only warning you *after* stock runs low, it measures
-  how fast each product sells, estimates how many days of stock are left, and suggests how
-  much to reorder. You restock in time rather than too late.
+- **Reorder suggestions** — most apps only warn you once stock is already low. This one
+  watches how fast each product sells, works out roughly how many days you have left, and
+  tells you how much to order so you can reorder before you run out.
 - **Products** — add, edit and delete products. Each has a price, quantity, category and its
   own low-stock threshold.
 - **Sales** — record a sale as an invoice with line items and a customer name. The invoice
@@ -33,7 +33,7 @@ which ones aren't moving, and where your revenue actually comes from.
 
 ## Built with
 
-HTML, CSS and plain JavaScript — no framework, no build step. Firebase handles the database
+HTML, CSS and plain JavaScript. No framework, no build step. Firebase handles the database
 (Firestore) and sign-in (Auth), and it's hosted on Firebase Hosting. Tests run on Vitest.
 
 ## How it's put together
@@ -75,7 +75,7 @@ Each page is its own HTML file, wired up to those two scripts.
 
 Vitest, against fixed product and sales fixtures with a pinned date so results don't drift
 depending on when or where you run them. The forecasting and insight functions are covered
-the same way — given the same history, they always produce the same advice.
+the same way. Given the same history, they always produce the same advice.
 
 ```bash
 npm install
