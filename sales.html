@@ -171,6 +171,8 @@
 <div id="toast-container"></div>
 
 <script>
+  const esc = StockWiseCalc.escapeHtml;
+
   var allSales       = [];
   var allProducts    = [];
   var currentInvoice = null;
@@ -229,8 +231,8 @@
       const date = new Date(s.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
       const n    = s.items?.length || 0;
       return `<tr>
-        <td><span class="font-mono text-sm">${s.invoiceNumber}</span></td>
-        <td class="td-primary">${s.customerName || 'Walk-in'}</td>
+        <td><span class="font-mono text-sm">${esc(s.invoiceNumber)}</span></td>
+        <td class="td-primary">${esc(s.customerName || 'Walk-in')}</td>
         <td class="text-muted">${n} item${n !== 1 ? 's' : ''}</td>
         <td>£${(s.subtotal||0).toFixed(2)}</td>
         <td class="text-muted">£${(s.tax||0).toFixed(2)}</td>
@@ -273,7 +275,7 @@
         <label class="form-label">Product</label>
         <select class="form-input" onchange="onProductSelect(this)" style="padding:8px 12px">
           <option value="">Select product…</option>
-          ${allProducts.map(p => `<option value="${p.id}" data-price="${p.price}" data-stock="${p.quantity}">${p.name} — £${parseFloat(p.price).toFixed(2)} (${p.quantity} in stock)</option>`).join('')}
+          ${allProducts.map(p => `<option value="${esc(p.id)}" data-price="${esc(p.price)}" data-stock="${esc(p.quantity)}">${esc(p.name)} — £${parseFloat(p.price).toFixed(2)} (${p.quantity} in stock)</option>`).join('')}
         </select>
       </div>
       <div class="form-group" style="margin:0">
@@ -382,7 +384,7 @@
           <div style="font-size:12px; color:var(--t2); margin-top:4px">Smart Inventory System</div>
         </div>
         <div class="invoice-meta-right">
-          <div class="invoice-num">${sale.invoiceNumber}</div>
+          <div class="invoice-num">${esc(sale.invoiceNumber)}</div>
           <div class="invoice-date-lbl">Issued: ${dateStr}</div>
         </div>
       </div>
@@ -395,7 +397,7 @@
         </div>
         <div>
           <div class="invoice-party-head">Bill To</div>
-          <div class="invoice-party-name">${sale.customerName || 'Walk-in Customer'}</div>
+          <div class="invoice-party-name">${esc(sale.customerName || 'Walk-in Customer')}</div>
           <div class="invoice-party-info">Date: ${dateStr}</div>
         </div>
       </div>
@@ -410,7 +412,7 @@
         </thead>
         <tbody>
           ${(sale.items||[]).map(i => `<tr>
-            <td>${i.productName}</td>
+            <td>${esc(i.productName)}</td>
             <td style="text-align:center">${i.quantity}</td>
             <td style="text-align:right">£${parseFloat(i.unitPrice).toFixed(2)}</td>
             <td>£${parseFloat(i.lineTotal).toFixed(2)}</td>

@@ -187,6 +187,8 @@
 <div id="toast-container"></div>
 
 <script>
+  const esc = StockWiseCalc.escapeHtml;
+
   var allProducts = [];
   var allSales    = [];
   var prodCat     = {};
@@ -275,7 +277,7 @@
     tbody.innerHTML = rows.map(r => `
       <tr>
         <td><span class="abc-badge ${r.class}">${r.class}</span></td>
-        <td class="td-primary">${r.name}</td>
+        <td class="td-primary">${esc(r.name)}</td>
         <td>${r.units.toLocaleString()} units</td>
         <td><strong>£${r.revenue.toFixed(2)}</strong></td>
         <td>
@@ -374,7 +376,7 @@
       <div style="display:flex; align-items:center; gap:8px;">
         <div style="width:10px; height:10px; border-radius:50%; background:${palette[i]}; flex-shrink:0"></div>
         <div style="flex:1; min-width:0">
-          <div style="font-size:12.5px; font-weight:500; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${cat}</div>
+          <div style="font-size:12.5px; font-weight:500; color:var(--t1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(cat)}</div>
           <div style="font-size:11px; color:var(--t2)">£${rev.toFixed(2)} · ${total>0?((rev/total)*100).toFixed(1):0}%</div>
         </div>
       </div>`).join('');
@@ -395,7 +397,7 @@
       const pct = totalRev > 0 ? ((s.revenue/totalRev)*100).toFixed(1) : 0;
       return `<tr>
         <td class="text-muted font-semibold">${i+1}</td>
-        <td class="td-primary">${name}</td>
+        <td class="td-primary">${esc(name)}</td>
         <td>${s.units.toLocaleString()} units</td>
         <td><strong>£${s.revenue.toFixed(2)}</strong></td>
         <td>

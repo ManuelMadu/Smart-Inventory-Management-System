@@ -196,6 +196,8 @@
 <div id="toast-container"></div>
 
 <script>
+  const esc = StockWiseCalc.escapeHtml;
+
   firebase.auth().onAuthStateChanged(async function(fbUser) {
     if (!fbUser) { window.location.href = 'index.html'; return; }
 
@@ -251,8 +253,8 @@
       <div class="insight-card ${i.severity}">
         <div class="insight-icon"><i class="ph ph-${i.icon}"></i></div>
         <div class="insight-body">
-          <div class="insight-title">${i.title}</div>
-          <div class="insight-text">${i.text}</div>
+          <div class="insight-title">${esc(i.title)}</div>
+          <div class="insight-text">${esc(i.text)}</div>
         </div>
       </div>`).join('');
   }
@@ -281,8 +283,8 @@
       <div class="reorder-item">
         <div class="urgency-dot ${s.urgency}"></div>
         <div class="reorder-info">
-          <div class="reorder-name">${s.name}</div>
-          <div class="reorder-reason">${s.reason}</div>
+          <div class="reorder-name">${esc(s.name)}</div>
+          <div class="reorder-reason">${esc(s.reason)}</div>
         </div>
         <div class="reorder-action">
           <div class="reorder-qty">+${s.suggestedQty}</div>
@@ -325,7 +327,7 @@
       <div class="alert-item">
         <div class="prod-avatar"><i class="ph ph-package"></i></div>
         <div class="alert-item-info">
-          <div class="alert-item-name">${p.name}</div>
+          <div class="alert-item-name">${esc(p.name)}</div>
           <div class="alert-item-sub">Restock at ${p.lowStockThreshold} units</div>
         </div>
         <span class="alert-item-qty ${p.quantity === 0 ? 'crit' : 'warn'}">${p.quantity} left</span>
@@ -343,8 +345,8 @@
       const date = new Date(s.createdAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'2-digit' });
       const n    = s.items?.length || 0;
       return `<tr>
-        <td><span class="font-mono text-sm">${s.invoiceNumber}</span></td>
-        <td class="td-primary">${s.customerName || 'Walk-in'}</td>
+        <td><span class="font-mono text-sm">${esc(s.invoiceNumber)}</span></td>
+        <td class="td-primary">${esc(s.customerName || 'Walk-in')}</td>
         <td class="text-muted">${n} item${n !== 1 ? 's' : ''}</td>
         <td><strong>£${(s.grandTotal||0).toFixed(2)}</strong></td>
         <td class="text-muted text-sm">${date}</td>

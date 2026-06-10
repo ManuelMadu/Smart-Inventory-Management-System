@@ -188,6 +188,8 @@
 <div id="toast-container"></div>
 
 <script>
+  const esc = StockWiseCalc.escapeHtml;
+
   var allProducts  = [];
   var deleteTarget = null;
 
@@ -267,12 +269,12 @@
           <div class="d-flex align-center gap-2">
             <div class="prod-avatar"><i class="ph ph-package"></i></div>
             <div>
-              <div class="td-primary">${p.name}</div>
-              ${p.description ? `<div class="td-sub">${p.description.slice(0,50)}${p.description.length>50?'…':''}</div>` : ''}
+              <div class="td-primary">${esc(p.name)}</div>
+              ${p.description ? `<div class="td-sub">${esc(p.description.slice(0,50))}${p.description.length>50?'…':''}</div>` : ''}
             </div>
           </div>
         </td>
-        <td><span class="badge badge-gray">${p.category || '—'}</span></td>
+        <td><span class="badge badge-gray">${esc(p.category || '—')}</span></td>
         <td>
           <div class="stock-wrap">
             <div class="stock-bar-bg"><div class="stock-bar-fill ${level}" style="width:${pct}%"></div></div>
@@ -286,7 +288,7 @@
             <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditModal('${p.id}')" title="Edit">
               <i class="ph ph-pencil-simple"></i>
             </button>
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="openDeleteModal('${p.id}','${p.name.replace(/'/g,"&apos;")}')" title="Delete">
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="openDeleteModal('${p.id}')" title="Delete">
               <i class="ph ph-trash" style="color:var(--danger)"></i>
             </button>
           </div>
@@ -329,9 +331,10 @@
 
   window.closeModal = function() { document.getElementById('product-modal').classList.remove('open'); };
 
-  window.openDeleteModal = function(id, name) {
+  window.openDeleteModal = function(id) {
+    var p = allProducts.find(function(p) { return p.id === id; });
     deleteTarget = id;
-    document.getElementById('delete-product-name').textContent = name;
+    document.getElementById('delete-product-name').textContent = p ? p.name : '';
     document.getElementById('delete-modal').classList.add('open');
   };
 

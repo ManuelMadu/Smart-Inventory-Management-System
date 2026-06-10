@@ -48,6 +48,27 @@ const SALES = [
 ];
 
 // ─────────────────────────────────────────────────────────
+describe('escapeHtml', () => {
+  it('escapes the HTML-significant characters', () => {
+    expect(calc.escapeHtml(`<img src=x onerror="alert(1)">`))
+      .toBe('&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
+  });
+
+  it("escapes single quotes and ampersands", () => {
+    expect(calc.escapeHtml(`Tom & Jerry's`)).toBe('Tom &amp; Jerry&#39;s');
+  });
+
+  it('coerces null/undefined to an empty string', () => {
+    expect(calc.escapeHtml(null)).toBe('');
+    expect(calc.escapeHtml(undefined)).toBe('');
+  });
+
+  it('leaves a plain product name untouched', () => {
+    expect(calc.escapeHtml('Coffee Beans 250g')).toBe('Coffee Beans 250g');
+  });
+});
+
+// ─────────────────────────────────────────────────────────
 describe('calcDashboardStats', () => {
   it('counts low-stock products, this-month sales, and revenue correctly', () => {
     const result = calc.calcDashboardStats(PRODUCTS, SALES, NOW);

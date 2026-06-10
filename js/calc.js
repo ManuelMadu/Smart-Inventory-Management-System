@@ -8,6 +8,25 @@
 (function () {
   'use strict';
 
+  // ── Output safety ─────────────────────────────────────────
+
+  /**
+   * Escapes a value for safe interpolation into HTML. Any user-supplied
+   * string (product names, customer names, categories) must be passed
+   * through this before being placed in an innerHTML template, otherwise
+   * a name like `<img src=x onerror=...>` would execute as markup.
+   * @param {*} value
+   * @returns {string}
+   */
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // ── Dashboard ─────────────────────────────────────────────
 
   /**
@@ -622,6 +641,7 @@
   // ── Export ────────────────────────────────────────────────
 
   var StockWiseCalc = {
+    escapeHtml,
     calcDashboardStats,
     filterLowStock,
     bucketRevenueByDay,
