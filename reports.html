@@ -153,6 +153,32 @@
           </div>
         </div>
 
+        <div class="card span-full">
+          <div class="card-header">
+            <div>
+              <div class="card-title">ABC Analysis</div>
+              <div class="card-subtitle">Which products carry your revenue — A = vital few (top 80%), B = next 15%, C = the long tail</div>
+            </div>
+            <span class="badge badge-green"><i class="ph ph-sparkle"></i> Smart</span>
+          </div>
+          <div class="card-body" id="abc-summary" style="display:flex; gap:12px; flex-wrap:wrap; padding-bottom:0"></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Class</th>
+                  <th>Product</th>
+                  <th>Units Sold</th>
+                  <th>Revenue</th>
+                  <th>Revenue Share</th>
+                  <th>Cumulative</th>
+                </tr>
+              </thead>
+              <tbody id="abc-body"></tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   </main>
@@ -214,7 +240,53 @@
     renderTopProductsChart(sales);
     renderCategoryChart(sales);
     renderTopItemsTable(sales);
+    renderAbcAnalysis(sales);
   };
+
+  // ── ABC Analysis ──────────────────────────────────────────
+  function renderAbcAnalysis(sales) {
+    const rows    = StockWiseCalc.calcAbcAnalysis(sales, allProducts);
+    const summary = document.getElementById('abc-summary');
+    const tbody   = document.getElementById('abc-body');
+
+    if (!rows.length) {
+      summary.innerHTML = '';
+      tbody.innerHTML   = `<tr><td colspan="6"><div class="empty-state" style="padding:28px 0"><p>No sales in this period</p></div></td></tr>`;
+      return;
+    }
+
+    const tiers = ['A', 'B', 'C'].map(cls => {
+      const items = rows.filter(r => r.class === cls);
+      const rev   = items.reduce((s, r) => s + r.revenue, 0);
+      const total = rows.reduce((s, r) => s + r.revenue, 0);
+      const share = total > 0 ? (rev / total) * 100 : 0;
+      return { cls, count: items.length, share };
+    });
+
+    summary.innerHTML = tiers.map(t => `
+      <div style="flex:1; min-width:140px; display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r)">
+        <span class="abc-badge ${t.cls}">${t.cls}</span>
+        <div>
+          <div style="font-size:13px; font-weight:600; color:var(--t1)">${t.count} product${t.count !== 1 ? 's' : ''}</div>
+          <div style="font-size:11.5px; color:var(--t2)">${t.share.toFixed(0)}% of revenue</div>
+        </div>
+      </div>`).join('');
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td><span class="abc-badge ${r.class}">${r.class}</span></td>
+        <td class="td-primary">${r.name}</td>
+        <td>${r.units.toLocaleString()} units</td>
+        <td><strong>£${r.revenue.toFixed(2)}</strong></td>
+        <td>
+          <div class="stock-wrap" style="min-width:100px">
+            <div class="stock-bar-bg"><div class="stock-bar-fill hi" style="width:${(r.share * 100).toFixed(1)}%"></div></div>
+            <span class="stock-qty" style="min-width:42px">${(r.share * 100).toFixed(1)}%</span>
+          </div>
+        </td>
+        <td class="text-muted">${(r.cumulativeShare * 100).toFixed(1)}%</td>
+      </tr>`).join('');
+  }
 
   // ── Stats ─────────────────────────────────────────────────
   function renderStats(sales) {

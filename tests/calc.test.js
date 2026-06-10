@@ -604,3 +604,203 @@ describe('prepareBestSellingItems', () => {
     expect(JSON.stringify(SALES)).toBe(before);
   });
 });
+
+// ── Smart / predictive analytics ──────────────────────────
+// A dedicated fixture set with denser, more recent sales so the
+// velocity / forecast maths has something meaningful to chew on.
+// NOW stays May 4 2026.
+
+const VEL_PRODUCTS = [
+  { id: 'v1', name: 'Fast Mover',  category: 'A', price: 10, quantity: 12, lowStockThreshold: 10 },
+  { id: 'v2', name: 'Slow Mover',  category: 'A', price: 20, quantity: 80, lowStockThreshold: 10 },
+  { id: 'v3', name: 'Out Of Stock',category: 'B', price: 15, quantity:  0, lowStockThreshold:  5 },
+  { id: 'v4', name: 'Dead Weight', category: 'B', price:  8, quantity: 40, lowStockThreshold:  5 },
+];
+
+// Fast Mover sells 30 units over the last 30 days (1/day).
+// Slow Mover sells 30 units too but it has deep stock.
+// Out Of Stock had recent sales but is now at zero.
+// Dead Weight has no sales at all in the window.
+const VEL_SALES = [
+  { id: 'a', createdAt: isoLocal(2026, 4, 4), grandTotal: 300,
+    items: [{ productId: 'v1', productName: 'Fast Mover', quantity: 30, unitPrice: 10, lineTotal: 300 }] },
+  { id: 'b', createdAt: isoLocal(2026, 4, 3), grandTotal: 600,
+    items: [{ productId: 'v2', productName: 'Slow Mover', quantity: 30, unitPrice: 20, lineTotal: 600 }] },
+  { id: 'c', createdAt: isoLocal(2026, 4, 2), grandTotal: 150,
+    items: [{ productId: 'v3', productName: 'Out Of Stock', quantity: 10, unitPrice: 15, lineTotal: 150 }] },
+  // An old sale outside the 30-day window — must be ignored by velocity.
+  { id: 'd', createdAt: isoLocal(2026, 0, 1), grandTotal: 800,
+    items: [{ productId: 'v1', productName: 'Fast Mover', quantity: 100, unitPrice: 10, lineTotal: 1000 }] },
+];
+
+// ─────────────────────────────────────────────────────────
+describe('calcSalesVelocity', () => {
+  it('averages units sold per day over the window', () => {
+    // 30 units in the last 30 days = 1.0 per day
+    expect(calc.calcSalesVelocity(VEL_SALES, 'v1', 30, NOW)).toBeCloseTo(1, 5);
+  });
+
+  it('ignores sales older than the window', () => {
+    // The 100-unit Jan sale is excluded; only the 30 recent units count
+    const vel = calc.calcSalesVelocity(VEL_SALES, 'v1', 30, NOW);
+    expect(vel).toBeLessThan(2);
+  });
+
+  it('returns 0 for a product with no sales', () => {
+    expect(calc.calcSalesVelocity(VEL_SALES, 'v4', 30, NOW)).toBe(0);
+  });
+
+  it('returns 0 for a non-positive window', () => {
+    expect(calc.calcSalesVelocity(VEL_SALES, 'v1', 0, NOW)).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+describe('daysUntilStockout', () => {
+  it('divides quantity by velocity', () => {
+    expect(calc.daysUntilStockout(12, 1)).toBe(12);
+    expect(calc.daysUntilStockout(10, 4)).toBe(2.5);
+  });
+
+  it('returns null when velocity is zero', () => {
+    expect(calc.daysUntilStockout(50, 0)).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+describe('calcReorderSuggestions', () => {
+  it('flags a fast mover that runs out within the lead time', () => {
+    // Fast Mover: qty 12, velocity 1/day → 12 days cover. With lead time 14 it qualifies.
+    const out = calc.calcReorderSuggestions(VEL_PRODUCTS, VEL_SALES, { now: NOW, leadTimeDays: 14 });
+    const fm  = out.find(s => s.id === 'v1');
+    expect(fm).toBeDefined();
+    expect(fm.daysUntilStockout).toBeCloseTo(12, 1);
+    expect(fm.suggestedQty).toBeGreaterThan(0);
+  });
+
+  it('does not flag a well-stocked slow mover', () => {
+    const out = calc.calcReorderSuggestions(VEL_PRODUCTS, VEL_SALES, { now: NOW, leadTimeDays: 7 });
+    expect(out.find(s => s.id === 'v2')).toBeUndefined();
+  });
+
+  it('marks an out-of-stock product as critical', () => {
+    const out = calc.calcReorderSuggestions(VEL_PRODUCTS, VEL_SALES, { now: NOW });
+    const oos = out.find(s => s.id === 'v3');
+    expect(oos).toBeDefined();
+    expect(oos.urgency).toBe('critical');
+    expect(oos.quantity).toBe(0);
+  });
+
+  it('reports null stockout for an out-of-stock product with no recent sales', () => {
+    const products = [{ id: 'z1', name: 'Zero', quantity: 0, lowStockThreshold: 5 }];
+    const out = calc.calcReorderSuggestions(products, [], { now: NOW });
+    expect(out[0].daysUntilStockout).toBeNull();
+    expect(out[0].urgency).toBe('critical');
+  });
+
+  it('sorts critical items ahead of warnings', () => {
+    const out = calc.calcReorderSuggestions(VEL_PRODUCTS, VEL_SALES, { now: NOW, leadTimeDays: 14 });
+    const firstWarn = out.findIndex(s => s.urgency === 'warning');
+    const lastCrit  = out.map(s => s.urgency).lastIndexOf('critical');
+    if (firstWarn !== -1 && lastCrit !== -1) expect(lastCrit).toBeLessThan(firstWarn);
+  });
+
+  it('suggests at least 1 unit and never negative', () => {
+    const out = calc.calcReorderSuggestions(VEL_PRODUCTS, VEL_SALES, { now: NOW, leadTimeDays: 14 });
+    out.forEach(s => expect(s.suggestedQty).toBeGreaterThanOrEqual(1));
+  });
+
+  it('does not mutate inputs', () => {
+    const p = JSON.stringify(VEL_PRODUCTS), s = JSON.stringify(VEL_SALES);
+    calc.calcReorderSuggestions(VEL_PRODUCTS, VEL_SALES, { now: NOW });
+    expect(JSON.stringify(VEL_PRODUCTS)).toBe(p);
+    expect(JSON.stringify(VEL_SALES)).toBe(s);
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+describe('findDeadStock', () => {
+  it('returns in-stock products with no sales in the window', () => {
+    const dead = calc.findDeadStock(VEL_PRODUCTS, VEL_SALES, NOW, 30);
+    expect(dead.map(p => p.id)).toContain('v4'); // Dead Weight
+  });
+
+  it('excludes out-of-stock products even if they have not sold', () => {
+    const dead = calc.findDeadStock(VEL_PRODUCTS, VEL_SALES, NOW, 30);
+    expect(dead.map(p => p.id)).not.toContain('v3'); // qty 0, not dead stock
+  });
+
+  it('excludes products that have sold within the window', () => {
+    const dead = calc.findDeadStock(VEL_PRODUCTS, VEL_SALES, NOW, 30);
+    expect(dead.map(p => p.id)).not.toContain('v1');
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+describe('calcAbcAnalysis', () => {
+  it('ranks products by revenue and assigns A/B/C classes', () => {
+    const rows = calc.calcAbcAnalysis(SALES, PRODUCTS);
+    // Widget A has the most revenue (150) → first, class A
+    expect(rows[0].name).toBe('Widget A');
+    expect(rows[0].class).toBe('A');
+    rows.forEach(r => expect(['A', 'B', 'C']).toContain(r.class));
+  });
+
+  it('shares sum to ~1 across all products', () => {
+    const rows  = calc.calcAbcAnalysis(SALES, PRODUCTS);
+    const total = rows.reduce((s, r) => s + r.share, 0);
+    expect(total).toBeCloseTo(1, 5);
+  });
+
+  it('cumulative share is monotonically increasing and ends at ~1', () => {
+    const rows = calc.calcAbcAnalysis(SALES, PRODUCTS);
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i].cumulativeShare).toBeGreaterThanOrEqual(rows[i - 1].cumulativeShare);
+    }
+    expect(rows[rows.length - 1].cumulativeShare).toBeCloseTo(1, 5);
+  });
+
+  it('returns empty array for empty sales', () => {
+    expect(calc.calcAbcAnalysis([], PRODUCTS)).toHaveLength(0);
+  });
+
+  it('falls back to the item productName when the product is gone', () => {
+    const sales = [{ items: [{ productId: 'ghost', productName: 'Ghost Item', quantity: 1, lineTotal: 5 }] }];
+    const rows  = calc.calcAbcAnalysis(sales, []);
+    expect(rows[0].name).toBe('Ghost Item');
+  });
+});
+
+// ─────────────────────────────────────────────────────────
+describe('generateInsights', () => {
+  it('produces an array of well-formed insight cards', () => {
+    const out = calc.generateInsights(VEL_PRODUCTS, VEL_SALES, { now: NOW });
+    expect(Array.isArray(out)).toBe(true);
+    out.forEach(i => {
+      expect(i).toHaveProperty('severity');
+      expect(i).toHaveProperty('title');
+      expect(i).toHaveProperty('text');
+      expect(['good', 'warning', 'critical', 'info']).toContain(i.severity);
+    });
+  });
+
+  it('warns about an out-of-stock product', () => {
+    const out = calc.generateInsights(VEL_PRODUCTS, VEL_SALES, { now: NOW });
+    expect(out.some(i => i.type === 'oos' && i.severity === 'critical')).toBe(true);
+  });
+
+  it('flags dead stock that has not sold', () => {
+    const out = calc.generateInsights(VEL_PRODUCTS, VEL_SALES, { now: NOW, deadDays: 30 });
+    expect(out.some(i => i.type === 'deadstock')).toBe(true);
+  });
+
+  it('reports a week-over-week revenue trend when there is history', () => {
+    // Sales this week (within 7 days of NOW) but none the prior week → "picking up"
+    const out = calc.generateInsights(VEL_PRODUCTS, VEL_SALES, { now: NOW });
+    expect(out.some(i => i.type === 'revenue')).toBe(true);
+  });
+
+  it('returns an empty array when there is no data at all', () => {
+    expect(calc.generateInsights([], [], { now: NOW })).toHaveLength(0);
+  });
+});

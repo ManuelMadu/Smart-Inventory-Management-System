@@ -90,6 +90,14 @@
         </div>
       </div>
 
+      <!-- Smart Insights -->
+      <div style="margin-bottom:4px; display:flex; align-items:center; gap:8px">
+        <i class="ph ph-sparkle" style="color:var(--accent); font-size:18px"></i>
+        <span style="font-size:13px; font-weight:600; color:var(--t1)">Smart Insights</span>
+        <span style="font-size:11.5px; color:var(--t2)">— what your data is telling you</span>
+      </div>
+      <div class="insights-grid" id="insights-grid"></div>
+
       <!-- Dashboard Grid -->
       <div class="dash-grid">
 
@@ -137,6 +145,20 @@
 
         <!-- Right -->
         <div style="display:flex; flex-direction:column; gap:18px">
+
+          <!-- Reorder Suggestions -->
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Reorder Suggestions</div>
+                <div class="card-subtitle" id="reorder-subtitle">—</div>
+              </div>
+              <span class="badge badge-green"><i class="ph ph-sparkle"></i> Smart</span>
+            </div>
+            <div class="card-body" style="padding-top:4px; padding-bottom:4px">
+              <div id="reorder-list"></div>
+            </div>
+          </div>
 
           <!-- Low Stock -->
           <div class="card">
@@ -201,11 +223,73 @@
     var sales    = await getSales();
 
     renderStats(products, sales);
+    renderInsights(products, sales);
+    renderReorder(products, sales);
     renderLowStock(products);
     renderRecentSales(sales.slice(0, 6));
     renderSalesChart(sales);
     renderStockChart(products);
   });
+
+  // ── Smart Insights ────────────────────────────────────────
+  function renderInsights(products, sales) {
+    const insights = StockWiseCalc.generateInsights(products, sales, { now: new Date() });
+    const grid     = document.getElementById('insights-grid');
+
+    if (!insights.length) {
+      grid.innerHTML = `<div class="insight-card info">
+        <div class="insight-icon"><i class="ph ph-lightbulb"></i></div>
+        <div class="insight-body">
+          <div class="insight-title">No insights yet</div>
+          <div class="insight-text">Add products and record a few sales — insights appear as soon as there's data to learn from.</div>
+        </div>
+      </div>`;
+      return;
+    }
+
+    grid.innerHTML = insights.slice(0, 4).map(i => `
+      <div class="insight-card ${i.severity}">
+        <div class="insight-icon"><i class="ph ph-${i.icon}"></i></div>
+        <div class="insight-body">
+          <div class="insight-title">${i.title}</div>
+          <div class="insight-text">${i.text}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Reorder Suggestions ───────────────────────────────────
+  function renderReorder(products, sales) {
+    const sugg = StockWiseCalc.calcReorderSuggestions(products, sales, { now: new Date() });
+    const sub  = document.getElementById('reorder-subtitle');
+    const list = document.getElementById('reorder-list');
+
+    if (!sugg.length) {
+      sub.textContent = 'Nothing needs reordering';
+      list.innerHTML  = `<div class="empty-state" style="padding:24px 0">
+        <div class="empty-icon"><i class="ph ph-checks"></i></div>
+        <p>Stock levels are healthy</p>
+      </div>`;
+      return;
+    }
+
+    const crit = sugg.filter(s => s.urgency === 'critical').length;
+    sub.textContent = crit > 0
+      ? `${crit} urgent · ${sugg.length} to reorder`
+      : `${sugg.length} item${sugg.length > 1 ? 's' : ''} to reorder soon`;
+
+    list.innerHTML = sugg.slice(0, 6).map(s => `
+      <div class="reorder-item">
+        <div class="urgency-dot ${s.urgency}"></div>
+        <div class="reorder-info">
+          <div class="reorder-name">${s.name}</div>
+          <div class="reorder-reason">${s.reason}</div>
+        </div>
+        <div class="reorder-action">
+          <div class="reorder-qty">+${s.suggestedQty}</div>
+          <div class="reorder-qty-label">reorder</div>
+        </div>
+      </div>`).join('');
+  }
 
   // ── Stats ─────────────────────────────────────────────────
   function renderStats(products, sales) {
