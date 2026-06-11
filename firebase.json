@@ -9,7 +9,8 @@
       "vitest.config.mjs",
       "package.json",
       "package-lock.json",
-      "README.md"
+      "README.md",
+      "**/*.zip"
     ]
   }
 }

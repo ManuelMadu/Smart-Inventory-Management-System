@@ -239,13 +239,20 @@
         <td><strong>£${(s.grandTotal||0).toFixed(2)}</strong></td>
         <td class="text-muted text-sm">${date}</td>
         <td>
-          <button class="btn btn-ghost btn-icon btn-sm" onclick="viewInvoice('${s.id}')" title="View Invoice">
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="view" data-id="${esc(s.id)}" title="View Invoice">
             <i class="ph ph-eye"></i>
           </button>
         </td>
       </tr>`;
     }).join('');
   }
+
+  // Row actions are wired via delegation so sale IDs are never
+  // interpolated into an inline onclick (a JS-execution context).
+  document.getElementById('sales-body').addEventListener('click', function(e) {
+    const btn = e.target.closest('button[data-action="view"]');
+    if (btn) viewInvoice(btn.dataset.id);
+  });
 
   // ── Filter ────────────────────────────────────────────────
   window.filterSales = function() {
