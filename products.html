@@ -285,10 +285,10 @@
         <td>${badge}</td>
         <td>
           <div class="d-flex gap-2">
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="openEditModal('${p.id}')" title="Edit">
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="edit" data-id="${esc(p.id)}" title="Edit">
               <i class="ph ph-pencil-simple"></i>
             </button>
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="openDeleteModal('${p.id}')" title="Delete">
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-id="${esc(p.id)}" title="Delete">
               <i class="ph ph-trash" style="color:var(--danger)"></i>
             </button>
           </div>
@@ -296,6 +296,15 @@
       </tr>`;
     }).join('');
   }
+
+  // Row actions are wired via delegation so product IDs are never
+  // interpolated into an inline onclick (a JS-execution context).
+  document.getElementById('products-body').addEventListener('click', function(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'edit')   openEditModal(btn.dataset.id);
+    if (btn.dataset.action === 'delete') openDeleteModal(btn.dataset.id);
+  });
 
   // ── Filter ────────────────────────────────────────────────
   window.filterProducts = function() {
