@@ -6,7 +6,7 @@ to reorder before you run out.
 
 **Live:** https://stockwise-7a8cb.web.app/
 
-**Try it** — sign in with the demo account. It's already loaded with sample products and sales:
+**Try it.** Sign in with the demo account. It's already loaded with sample products and sales:
 
 ```
 Email:    demo@stockwise.app
@@ -21,24 +21,24 @@ what isn't selling, and where the money's actually coming from.
 
 ## What it does
 
-- **Dashboard** — the numbers worth knowing at a glance: items low on stock, sales this
+- **Dashboard.** The numbers worth knowing at a glance: items low on stock, sales this
   month, and the month's revenue, all worked out live from your data.
-- **Smart insights** — short, plain-English notes at the top of the dashboard, e.g.
+- **Smart insights.** Short, plain-English notes at the top of the dashboard, e.g.
   "Revenue is up 23% on last week", "Coffee Beans is running out", "3 items haven't sold in
   a month". No digging through charts to find out what changed.
-- **Reorder suggestions** — most apps only warn you once stock is already low. This one
+- **Reorder suggestions.** Most apps only warn you once stock is already low. This one
   watches how fast each product sells, works out roughly how many days you have left, and
   tells you how much to order so you can reorder before you run out.
-- **Products** — add, edit and delete products. Each has a price, quantity, category and its
+- **Products.** Add, edit and delete products. Each has a price, quantity, category and its
   own low-stock threshold.
-- **Sales** — record a sale as an invoice with line items and a customer name. The invoice
+- **Sales.** Record a sale as an invoice with line items and a customer name. The invoice
   number is generated for you and stock comes down as you sell.
-- **Reports** — sales trends over time, top products, revenue by category, and an
+- **Reports.** Sales trends over time, top products, revenue by category, and an
   **ABC analysis** that sorts your catalogue into the vital few (A), the next tier (B) and
   the long tail (C) by revenue contribution.
-- **Accounts** — Firebase Auth sign-in. Your products and sales live in your own Firestore
+- **Accounts.** Firebase Auth sign-in. Your products and sales live in your own Firestore
   collection, separate from everyone else's.
-- **Settings** — account and app preferences, including dark mode.
+- **Settings.** Account and app preferences, including dark mode.
 
 ## Built with
 
@@ -49,10 +49,11 @@ HTML, CSS and plain JavaScript. No framework, no build step. Firebase handles th
 
 The part I'm happiest with is that the maths is kept on its own.
 
-`js/calc.js` is just calculations — dashboard stats, the low-stock filter, invoice totals,
-monthly aggregation, and all the smart logic: sales velocity, days-until-stockout, reorder
-sizing, dead-stock detection, the insight generator and the ABC analysis. It never touches
-the DOM or Firebase and never mutates its inputs, which is exactly why it's easy to test.
+`js/calc.js` is nothing but calculations. Dashboard stats, the low-stock filter, invoice
+totals, monthly aggregation, and the smart stuff: sales velocity, days-until-stockout,
+reorder sizing, dead-stock detection, the insight generator, the ABC analysis. It never
+touches the DOM or Firebase, and never mutates its inputs, which is exactly why it's easy
+to test.
 It's exposed as `window.StockWiseCalc` in the browser and as a normal module in Node.
 
 `js/store.js` is the Firebase side: auth, plus reading and writing each user's products and
@@ -71,7 +72,7 @@ Each page is its own HTML file, wired up to those two scripts.
 ├── 404.html
 ├── css/
 ├── js/
-│   ├── calc.js           # pure logic — all the tests point here
+│   ├── calc.js           # pure logic, where all the tests point
 │   └── store.js          # Firebase auth + Firestore
 ├── tests/
 │   └── calc.test.js
@@ -98,7 +99,7 @@ npm run test:coverage
 No build step, so any static server does the job:
 
 ```bash
-# Firebase CLI — closest to production
+# Firebase CLI (closest to production)
 npm install -g firebase-tools
 firebase serve
 
@@ -118,7 +119,7 @@ firebase deploy
 
 ## A note on the Firebase key
 
-The config in `js/store.js` is public on purpose — that's how Firebase web apps work. The
+The config in `js/store.js` is public on purpose. That's how Firebase web apps work: the
 data is protected by Firestore security rules, not by hiding the key.
 
 ## Author
