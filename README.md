@@ -1,4 +1,4 @@
-# StockWise — Smart Inventory Management System
+# StockWise - Smart Inventory Management System
 
 A small web app for running a shop's stock and sales from one place. You add products,
 record sales as invoices, and the dashboard tells you what's low, what's selling, and what
@@ -124,4 +124,4 @@ data is protected by Firestore security rules, not by hiding the key.
 
 ## Author
 
-Manuel Madubugini — [github.com/ManuelMadu](https://github.com/ManuelMadu)
+Manuel Madubugini - [github.com/ManuelMadu](https://github.com/ManuelMadu)
