@@ -6,14 +6,14 @@ to reorder before you run out.
 
 **Live:** https://stockwise-7a8cb.web.app/
 
-**Try it** — sign in with the demo account, already loaded with sample products and sales:
+**Try it** — sign in with the demo account. It's already loaded with sample products and sales:
 
 ```
 Email:    demo@stockwise.app
 Password: Demo1234!
 ```
 
-It's a shared demo, so feel free to poke around — if the data looks edited, it's because someone got there first.
+It's a shared demo, so poke around as much as you like. If the data looks a bit off, someone probably got there before you.
 
 The "smart" part is the point. Most inventory apps just store your numbers and leave the
 thinking to you. This one reads your sales history and tells you what's about to run out,
